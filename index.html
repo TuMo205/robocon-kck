@@ -162,6 +162,18 @@ dialog .actions{justify-content:flex-end;margin-top:20px}
 #toast{position:fixed;left:50%;bottom:26px;z-index:60;transform:translate(-50%,16px);opacity:0;pointer-events:none;max-width:calc(100% - 28px);padding:10px 16px;border-radius:12px;background:var(--navy);color:#fff;font-weight:600;font-size:14px;box-shadow:var(--shadow);transition:opacity .18s,transform .18s}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 
+/* QR stamps waiting for a manager's decision */
+.review{margin:0 20px 14px;padding:12px 14px;border:1px solid #f1d9a8;border-radius:12px;background:#fff8ea;font-size:14px}
+.review:empty{display:none}
+#review:empty{display:none}
+.review>strong{display:flex;align-items:center;gap:8px;margin-bottom:4px;color:#7a4a05}
+.rv{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:9px 0;border-top:1px solid #f1e2c2}
+.rv small{display:block;color:#7a4a05}
+.problem{color:var(--bad);font-weight:500}
+dialog textarea{border:1px solid var(--field);border-radius:10px;padding:9px 11px;font:inherit;font-weight:400;resize:vertical}
+dialog input[type=file]{height:auto;padding:8px 10px}
+#qrplace select{height:34px;margin:0 2px}
+.linkbtn.inline{display:inline;margin:0;padding:0}
 /* QR code dialog, and the page a member sees after scanning it */
 .qrbox{display:grid;place-items:center;min-height:240px;padding:8px;margin-bottom:12px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--muted);text-align:center}
 .qrbox svg{width:min(100%,340px);height:auto}
@@ -209,6 +221,7 @@ main{padding-bottom:98px}
 .panel{margin-top:16px}
 .toolbar{padding:15px 16px}
 .filters{padding:0 16px 12px}
+.review{margin:0 16px 12px}
 .search{max-width:none;flex-basis:100%}
 .lhead{display:none}
 .row{padding:14px 16px;gap:10px 12px}
@@ -264,10 +277,11 @@ const dayFormat = new Intl.DateTimeFormat('sv-SE',{timeZone:zone});
 const timeFormat = new Intl.DateTimeFormat('en-GB',{timeZone:zone,hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
 const longDate = new Intl.DateTimeFormat('vi-VN',{timeZone:zone,weekday:'long',day:'numeric',month:'long',year:'numeric'});
 let today = dayFormat.format(new Date());
-const STORE = 'robocon-kck-v2', OLD_STORE = 'nhip-viec-v1', SYNC_STORE = 'robocon-kck-sync', ME_STORE = 'robocon-kck-me';
+const STORE = 'robocon-kck-v2', OLD_STORE = 'nhip-viec-v1', SYNC_STORE = 'robocon-kck-sync', ME_STORE = 'robocon-kck-me', DEV_STORE = 'robocon-kck-dev', DAY_STORE = 'robocon-kck-day';
 const keyRe = /^[A-Za-z0-9_-]{24,64}$/;
-// Marks set by hand, without clock times. '' means the day is judged from the recorded times.
-const marks = {'':'Theo giờ',present:'Có mặt',late:'Đi muộn',leave:'Nghỉ phép',absent:'Vắng mặt'};
+// Why a member has no clock times on a day. Older data may also hold the hand marks in oldMarks.
+const marks = {'':'Không nghỉ',leave:'Nghỉ phép',absent:'Vắng mặt'};
+const oldMarks = {present:'Có mặt',late:'Đi muộn'};
 const codeClass = {X:'ok',M:'warn',S:'warn','?':'warn',P:'info',V:'bad'};
 const weekdays = ['CN','T2','T3','T4','T5','T6','T7'];
 const escapes = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
@@ -287,6 +301,8 @@ const paths = {
   check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   alert:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.4v.1"/>',
   qr:'<rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h3v3h-3zM20.5 14v.1M14 20.5h.1M17.5 20.5h3v-3"/>',
+  upload:'<path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M5 19.5h14"/>',
+  pin:'<path d="M12 21s-6.5-5.6-6.5-10.5a6.5 6.5 0 0113 0C18.5 15.4 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.3"/>',
   prev:'<path d="M15 5l-7 7 7 7"/>',
   next:'<path d="M9 5l7 7-7 7"/>'
 };
@@ -308,7 +324,8 @@ function toast(text){
 
 // ---- Data ----
 // Everything lives in one tree whose leaves are people/<id>, tasks/<id>, attendance/<day>/<id>, settings, meta,
-// qr/<day> (that day's check-in code) and scans/<day>/<id> (which QR scans were already turned into clock times).
+// qr/<day> (that day's check-in code), scans/<day>/<key> (what became of each thing a phone sent after scanning)
+// and devices/<id> (the phone a member last stamped from).
 // The shared database stores the same tree, so a change is always "set this leaf", never "replace everything".
 function cleanRecord(value){
   // Before clock times existed a day was stored as a bare status word.
@@ -323,13 +340,30 @@ function cleanSettings(value){
   return {
     start: timeRe.test(s.start) ? s.start : s.start==='' ? '' : '08:00',
     end: timeRe.test(s.end) ? s.end : s.end==='' ? '' : '17:00',
-    grace: Math.min(120,Math.max(0,Math.round(Number(s.grace))||0))
+    grace: Math.min(120,Math.max(0,Math.round(Number(s.grace))||0)),
+    // Where QR stamps must come from, when the managers have switched that check on.
+    geo: isRecord(s.geo) && [s.geo.lat,s.geo.lng,s.geo.r].every(Number.isFinite) ? {lat:s.geo.lat,lng:s.geo.lng,r:Math.min(5000,Math.max(50,Math.round(s.geo.r)))} : null
   };
+}
+// What became of one thing a phone sent after scanning: a scan ticket ('s'), an in/out stamp, or junk ('x').
+function cleanMark(m){
+  if(!isRecord(m)) return null;
+  const str=(v,max=60)=>typeof v==='string' ? v.slice(0,max) : '';
+  if(m.a==='x') return {a:'x'};
+  if(m.a==='s') return {a:'s',v:m.v?1:0,t:Number(m.t)||0,dev:str(m.dev),...(m.c && {c:str(m.c)})};
+  if(m.a!=='in' && m.a!=='out') return null;
+  const out={a:m.a,t:Number(m.t)||0,ok:m.ok===1||m.ok===2 ? m.ok : 0,sid:str(m.sid),dev:str(m.dev)};
+  if(m.p) out.p=str(m.p);
+  if(m.why) out.why=str(m.why,10);
+  if(m.note) out.note=str(m.note,80);
+  if(m.warn) out.warn=str(m.warn,10);
+  if(isRecord(m.who)) out.who={name:str(m.who.name,100),studentId:str(m.who.studentId,40),cls:str(m.who.cls,40),phone:str(m.who.phone,40)};
+  return out;
 }
 // Saved or downloaded data can be damaged or incomplete; rebuild it in the exact shape the page relies on.
 function cleanState(raw){
   const src = isRecord(raw) ? raw : {};
-  const out = {people:{},tasks:{},attendance:{},qr:{},scans:{},settings:cleanSettings(src.settings),meta:{seeded:!!(isRecord(src.meta)&&src.meta.seeded)}};
+  const out = {people:{},tasks:{},attendance:{},qr:{},scans:{},devices:{},settings:cleanSettings(src.settings),meta:{seeded:!!(isRecord(src.meta)&&src.meta.seeded)}};
   for(const [id,p] of entries(src.people)) if(validKey(id) && isRecord(p)) out.people[id]={name:String(p.name??''),studentId:String(p.studentId??''),cls:String(p.cls??''),phone:String(p.phone??''),order:Number(p.order)||0};
   for(const [id,t] of entries(src.tasks)) if(validKey(id) && isRecord(t)) out.tasks[id]={title:String(t.title??''),owner:String(t.owner??''),due:dateRe.test(t.due)?t.due:today,progress:Math.min(100,Math.max(0,Math.round(Number(t.progress))||0))};
   for(const [d,records] of entries(src.attendance)){
@@ -339,14 +373,18 @@ function cleanState(raw){
       if(r) (out.attendance[d]??={})[id]=r;
     }
   }
-  for(const [d,code] of entries(src.qr)) if(dateRe.test(d) && keyRe.test(code?.key) && [code.x,code.y,code.d].every(v=>typeof v==='string')) out.qr[d]={key:code.key,x:code.x,y:code.y,d:code.d};
+  for(const [d,code] of entries(src.qr)) if(dateRe.test(d) && keyRe.test(code?.key) && [code.x,code.y,code.d].every(v=>typeof v==='string')) out.qr[d]={key:code.key,x:code.x,y:code.y,d:code.d,...(typeof code.s==='string' && {s:code.s})};
   for(const [d,seen] of entries(src.scans)){
     if(!dateRe.test(d)) continue;
-    for(const [id,m] of entries(seen)) if(validKey(id) && Number.isFinite(m?.i) && typeof m.p==='string') (out.scans[d]??={})[id]=Number.isFinite(m.o) ? {i:m.i,o:m.o,p:m.p} : {i:m.i,p:m.p};
+    for(const [id,m] of entries(seen)){
+      const mark=validKey(id) ? cleanMark(m) : null;
+      if(mark) (out.scans[d]??={})[id]=mark;
+    }
   }
+  for(const [id,dev] of entries(src.devices)) if(validKey(id) && typeof dev==='string') out.devices[id]=dev.slice(0,60);
   return out;
 }
-function fill(s){s.people??={};s.tasks??={};s.attendance??={};s.qr??={};s.scans??={};s.settings??=cleanSettings();s.meta??={seeded:false};}
+function fill(s){s.people??={};s.tasks??={};s.attendance??={};s.qr??={};s.scans??={};s.devices??={};s.settings??=cleanSettings();s.meta??={seeded:false};}
 // The first version of the page kept people and tasks as lists.
 function fromV1(old){
   const src = isRecord(old) ? old : {}, key = id => String(id??'').replace(badKey,'_');
@@ -392,6 +430,7 @@ function leaves(s){
   for(const [d,records] of Object.entries(s.attendance)) for(const [id,r] of Object.entries(records)) out['attendance/'+d+'/'+id]=r;
   for(const [d,code] of Object.entries(s.qr)) out['qr/'+d]=code;
   for(const [d,seen] of Object.entries(s.scans)) for(const [id,m] of Object.entries(seen)) out['scans/'+d+'/'+id]=m;
+  for(const [id,dev] of Object.entries(s.devices)) out['devices/'+id]=dev;
   return out;
 }
 // Every change goes through here: apply it locally at once, then queue it for the shared database.
@@ -431,10 +470,11 @@ function parseTarget(text){
   return {url:u.origin+(local?u.pathname.replace(/\/$/,''):''),key:m[2]};
 }
 function targetCode(target){return target.url.replace(/^https?:\/\//,'')+'/'+target.key;}
-function fromHash(name){
+function hashParam(name){
   const m=location.hash.match(new RegExp('[#&]'+name+'=([^&]+)'));
-  try {return m ? parseTarget(decodeURIComponent(m[1])) : null;} catch {return null;}
+  try {return m ? decodeURIComponent(m[1]) : '';} catch {return '';}
 }
+function fromHash(name){return parseTarget(hashParam(name));}
 // Accepts a manager link, or a bare database address (which starts a new shared space with a fresh key).
 function parseSync(text){
   text=String(text).trim();
@@ -544,15 +584,24 @@ function updateFoot(){
 }
 
 // ---- QR check-in ----
-// Each day gets its own space in the database, named by a fresh secret key that is shown as a QR code.
-// A member who scans it types name, student ID, class and phone, and stamps "in" or "out" with the server's clock.
-// Those details are encrypted for the managers (the day's private key lives in the managers' tree), so someone who
-// only has the QR code can see that stamps exist but not who made them. Yesterday's code leads nowhere.
+// Each day gets its own space in the database, named by a fresh secret key. The QR code on a manager's screen
+// carries that key plus a short token that changes every few seconds, so a photo of the code goes stale quickly.
+// A member's phone records the scan at once (a "ticket"), then sends "in"/"out" stamps that refer to that ticket.
+// Everything a phone sends is encrypted for the managers and timed by the server's clock. Managers' pages check
+// each stamp (fresh code, one phone per person, optionally near the meeting place) before it becomes a clock time;
+// a stamp that fails a check waits in a list for a manager to accept or drop.
 let daily = null, dailyKey = '', dailyDate = '', dailyStream = null, qrLib = null, importing = Promise.resolve();
+let clockSkew = 0, qrTimer = 0, wake = null, reviewShown = '';
 const curve = {name:'ECDH',namedCurve:'P-256'};
+const STEP = 15000;          // the code on screen changes this often (ms)
+const GRACE = 30000;         // how long after its turn a code is still accepted
+const TICKET_LIFE = 600000;  // how long after scanning a phone may still stamp
+const reasons = {old:'Mã QR đã cũ, có thể là ảnh chụp lại',reuse:'Một lần quét được dùng cho nhiều người',slow:'Quét xong quá lâu mới bấm chấm công',dev:'Điện thoại này đã chấm công cho người khác',far:'Ở ngoài khu vực cho phép',noloc:'Không gửi vị trí',noin:'Ra ca nhưng chưa có giờ vào',day:'Không phải mã của ngày này'};
 const toB64 = bytes => btoa(String.fromCharCode(...bytes));
-const fromB64 = text => Uint8Array.from(atob(text),c=>c.charCodeAt(0));
+const fromB64 = text => Uint8Array.from(atob(text.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+const urlSafe = text => text.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 function hhmm(ts){return timeFormat.format(new Date(ts)).slice(0,5);}
+function tidy(value,max=100){return String(value??'').trim().replace(/\s+/g,' ').slice(0,max);}
 // Encrypt for the holder of the day's private key: a throwaway key pair, then AES-GCM with the shared secret.
 async function seal(pub,fields){
   const theirs=await crypto.subtle.importKey('raw',fromB64(pub),curve,false,[]);
@@ -570,61 +619,118 @@ async function unseal(code,sealed){
   const aes=await crypto.subtle.deriveKey({name:'ECDH',public:theirs},mine,{name:'AES-GCM',length:256},false,['decrypt']);
   return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes.slice(65,77)},aes,bytes.slice(77))));
 }
-// A member's stamp is filed under a digest of the day key and student ID: stable for that person, meaningless to others.
-async function entryKey(dayKey,studentId){
-  const bytes=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(dayKey+'|'+studentId.toUpperCase())));
-  return [...bytes.slice(0,16)].map(b=>b.toString(16).padStart(2,'0')).join('');
+// The token shown at a given moment: the time slot plus a signature only the managers' pages can make.
+async function qrToken(code,slot){
+  const key=await crypto.subtle.importKey('raw',fromB64(code.s),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const mac=new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(String(slot))));
+  return slot.toString(36)+'.'+urlSafe(toB64(mac.slice(0,9)));
 }
-function tidy(value,max=100){return String(value??'').trim().replace(/\s+/g,' ').slice(0,max);}
-// Find the member a scanned form belongs to (by student ID), or add them. Returns the member id.
+function slotOf(token){return parseInt(String(token).split('.')[0],36);}
+function inWindow(slot,at){return at>=slot*STEP-STEP && at<=(slot+1)*STEP+GRACE;}
+async function tokenFresh(code,token,at){
+  const slot=slotOf(token);
+  return !!code.s && Number.isFinite(slot) && token===await qrToken(code,slot) && inWindow(slot,at);
+}
+function distance(a,b){
+  const rad=x=>x*Math.PI/180, lat=rad(b.lat-a.lat), lng=rad(b.lng-a.lng);
+  const h=Math.sin(lat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(lng/2)**2;
+  return 2*6371000*Math.asin(Math.sqrt(h));
+}
+// The member a form or a spreadsheet row belongs to: by student ID, otherwise by name.
+function findPerson(who){
+  const all=Object.entries(state.people), sid=who.studentId.replace(/\s/g,'').toUpperCase(), name=fold(who.name);
+  return (sid && all.find(([,p])=>p.studentId.replace(/\s/g,'').toUpperCase()===sid)) || all.find(([,p])=>(!p.studentId || !sid) && fold(p.name)===name);
+}
+// Find that member or add them. Returns the member id.
 function enroll(who,updates){
-  const name=tidy(who?.name), studentId=tidy(who?.studentId,40).replace(/\s/g,''), cls=tidy(who?.cls,40), phone=tidy(who?.phone,40);
-  if(!name || !studentId) return '';
-  const all=Object.entries(state.people);
-  const found=all.find(([,p])=>p.studentId.replace(/\s/g,'').toUpperCase()===studentId.toUpperCase()) ?? all.find(([,p])=>!p.studentId && fold(p.name)===fold(name));
+  const found=findPerson(who);
   if(!found){
-    const id='m'+studentId.replace(/[^A-Za-z0-9_-]/g,'_');
-    updates['people/'+id]={name,studentId,cls,phone,order:all.reduce((max,[,p])=>Math.max(max,p.order),-1)+1};
+    const id='m'+who.studentId.replace(/[^A-Za-z0-9_-]/g,'_');
+    updates['people/'+id]={name:who.name,studentId:who.studentId,cls:who.cls,phone:who.phone,order:Object.values(state.people).reduce((max,p)=>Math.max(max,p.order),-1)+1};
     return id;
   }
   // The managers' list wins; a scan only fills in what is still missing.
-  const [id,p]=found, merged={...p,studentId:p.studentId||studentId,cls:p.cls||cls,phone:p.phone||phone};
+  const [id,p]=found, merged={...p,studentId:p.studentId||who.studentId,cls:p.cls||who.cls,phone:p.phone||who.phone};
   if(merged.studentId!==p.studentId || merged.cls!==p.cls || merged.phone!==p.phone) updates['people/'+id]=merged;
   return id;
 }
-// Turn stamps into clock times. Runs one batch at a time because decrypting is asynchronous.
+// Turn a stamp into a clock time. Returns a reason code when it cannot be applied.
+function applyStamp(d,mark,who,updates){
+  if(mark.a==='out' && !state.attendance[d]?.[findPerson(who)?.[0]]?.in) return 'noin';
+  const id=enroll(who,updates), rec=state.attendance[d]?.[id], time=hhmm(mark.t);
+  if(mark.a==='out') updates['attendance/'+d+'/'+id]={in:rec.in,out:time};
+  else if(!rec?.in) updates['attendance/'+d+'/'+id]={in:time};
+  if(mark.dev){
+    // A different phone than last time is worth a second look, not a refusal.
+    if(state.devices[id] && state.devices[id]!==mark.dev) mark.warn='dev';
+    updates['devices/'+id]=mark.dev;
+  }
+  mark.p=id;mark.ok=1;
+  return '';
+}
+// Decide what one decrypted message from a phone amounts to. Returns the mark kept for it.
+async function checkStamp(d,code,at,message,updates){
+  const kind=message?.a, dev=tidy(message?.dev,40);
+  if(kind==='scan') return {a:'s',v:dev && await tokenFresh(code,message.k,at) ? 1 : 0,t:at,dev};
+  const who={name:tidy(message?.name),studentId:tidy(message?.studentId,40).replace(/\s/g,''),cls:tidy(message?.cls,40),phone:tidy(message?.phone,40)};
+  if((kind!=='in' && kind!=='out') || !who.name || !who.studentId) return {a:'x'};
+  const marks=state.scans[d]??{}, sid=who.studentId.toUpperCase(), ticketKey=tidy(message.s,64), ticket=marks[ticketKey];
+  const mark={a:kind,t:at,dev,sid};
+  const other=Object.values(marks).find(m=>m.ok===1 && m.dev===dev && m.sid!==sid);
+  const place=state.settings.geo, loc=message.loc;
+  let why='', note='';
+  if(dayFormat.format(new Date(at))!==d) why='day';
+  else if(ticket?.a!=='s' || !ticket.v || ticket.dev!==dev) why='old';
+  else if(ticket.c && ticket.c!==sid) why='reuse';
+  else if(at<ticket.t || at-ticket.t>TICKET_LIFE) why='slow';
+  else if(other){why='dev';note=state.people[other.p]?.name??'';}
+  else if(place && !(Number.isFinite(loc?.lat) && Number.isFinite(loc?.lng))) why='noloc';
+  else if(place && distance(place,loc)-Math.min(Number(loc.acc)||0,150)>place.r){why='far';note='cách khoảng '+Math.round(distance(place,loc))+' m';}
+  if(!why){
+    if(!ticket.c) updates['scans/'+d+'/'+ticketKey]={...ticket,c:sid};
+    why=applyStamp(d,mark,who,updates);
+  }
+  return why ? {...mark,ok:0,why,...(note && {note}),who} : mark;
+}
+// Work through what phones have sent, oldest first. One batch at a time, because decrypting is asynchronous.
 function importScans(d,data){importing=importing.then(()=>importDay(d,data)).catch(()=>{});}
 async function importDay(d,data){
+  const code=state.qr[d];
+  if(!code) return;
+  const events=entries(data?.in).filter(([key,e])=>validKey(key) && Number.isFinite(e?.t) && typeof e.d==='string').sort((a,b)=>a[1].t-b[1].t);
   let changed=false;
-  for(const [entry,stamp] of entries(data?.in)){
-    const ts=stamp?.t, outTs=data.out?.[entry];
-    if(!validKey(entry) || !Number.isFinite(ts) || dayFormat.format(new Date(ts))!==d) continue;
-    let seen=state.scans[d]?.[entry]??{};
-    if(seen.i===ts && (!Number.isFinite(outTs) || seen.o===outTs)) continue;
-    let who=null;
-    if(seen.i!==ts){
-      const code=state.qr[d];
-      try {who=await unseal(code,stamp.d);} catch {continue;}
-      if(!sync) return;
-      seen=state.scans[d]?.[entry]??{};   // another manager's page may have handled it while this one was decrypting
-    }
-    // Each stamp is applied once, so a time a manager corrected afterwards is not overwritten again.
-    const updates={}, mark={...seen};
-    if(seen.i!==ts){
-      const id=enroll(who,updates);
-      if(!id) continue;
-      mark.i=ts;mark.p=id;
-    }
-    const rec=state.attendance[d]?.[mark.p];
-    let next=rec;
-    if(seen.i!==ts && !rec?.in) next={in:hhmm(ts)};
-    if(Number.isFinite(outTs) && seen.o!==outTs){mark.o=outTs;if(next?.in) next={in:next.in,out:hhmm(outTs)};}
-    if(mark.i===seen.i && mark.o===seen.o) continue;
-    updates['scans/'+d+'/'+entry]=mark;
-    if(next!==rec) updates['attendance/'+d+'/'+mark.p]=next;
+  for(const [key,event] of events){
+    if(state.scans[d]?.[key]) continue;
+    let message=null;
+    try {message=await unseal(code,event.d);} catch {}
+    if(!sync) return;
+    if(state.scans[d]?.[key]) continue;   // another manager's page handled it while this one was decrypting
+    const updates={}, mark=await checkStamp(d,code,event.t,message,updates);
+    updates['scans/'+d+'/'+key]=mark;
     commit(updates);changed=true;
   }
   if(changed) refresh();
+}
+// A manager overrules a refused stamp, or drops it from the list.
+function acceptStamp(d,key){
+  const m=state.scans[d]?.[key];
+  if(!m?.who) return;
+  const mark={a:m.a,t:m.t,dev:m.dev,sid:m.sid}, updates={}, why=applyStamp(d,mark,m.who,updates);
+  if(why){toast('Người này chưa có giờ vào. Hãy nhập giờ vào trước.');return;}
+  updates['scans/'+d+'/'+key]=mark;
+  commit(updates);render();
+}
+function dismissStamp(d,key){
+  const m=state.scans[d]?.[key];
+  if(!m) return;
+  commit({['scans/'+d+'/'+key]:{a:m.a,t:m.t,dev:m.dev,sid:m.sid,ok:2}});render();
+}
+function reviewList(d){
+  const waiting=Object.entries(state.scans[d]??{}).filter(([,m])=>m.ok===0 && m.who).sort((a,b)=>a[1].t-b[1].t);
+  if(!waiting.length) return '';
+  return '<div class="review"><strong>'+icon('alert')+waiting.length+' lượt quét QR cần xem lại</strong>'+waiting.map(([key,m])=>
+    '<div class="rv"><div><b>'+hhmm(m.t)+' · '+html(m.who.name)+'</b> ('+html([m.who.studentId,m.who.cls].filter(Boolean).join(' · '))+') muốn '+(m.a==='in'?'vào ca':'ra ca')+
+    '<small>'+html(reasons[m.why]??'Không hợp lệ')+(m.note?': '+html(m.note):'')+'</small></div><div class="actions">'+btn('Chấp nhận','accept',{id:key})+btn('Bỏ','dismiss',{id:key})+'</div></div>').join('')+'</div>';
 }
 function watchDaily(){
   const key=sync && live ? state.qr[today]?.key??'' : '';
@@ -636,7 +742,6 @@ function watchDaily(){
     if(dailyStream!==es) return;
     daily=applyEvent(daily,message,patch);
     importScans(dailyDate,daily);
-    updateQrNote();
   });
 }
 // Stamps made on earlier days' codes while no manager had the page open.
@@ -651,7 +756,7 @@ async function catchUpScans(){
   }
 }
 async function ensureDaily(fresh){
-  if(state.qr[today] && !fresh) return state.qr[today].key;
+  if(state.qr[today]?.s && !fresh) return state.qr[today].key;
   const key=randomKey(), d=today;
   const pair=await crypto.subtle.generateKey(curve,true,['deriveKey']);
   const jwk=await crypto.subtle.exportKey('jwk',pair.privateKey);
@@ -659,11 +764,20 @@ async function ensureDaily(fresh){
   const res=await fetch(sync.url+'/daily/'+key+'/info.json',{method:'PUT',body:JSON.stringify({date:d,pub})});
   if(!res.ok) throw new Error('daily');
   // Codes and scan marks older than a week are no longer needed.
-  const updates={['qr/'+d]:{key,x:jwk.x,y:jwk.y,d:jwk.d}}, cutoff=dayFormat.format(new Date(Date.now()-7*86400000));
+  const updates={['qr/'+d]:{key,x:jwk.x,y:jwk.y,d:jwk.d,s:urlSafe(toB64(crypto.getRandomValues(new Uint8Array(18))))}}, cutoff=dayFormat.format(new Date(Date.now()-7*86400000));
   for(const old of Object.keys(state.qr)) if(old<cutoff) updates['qr/'+old]=null;
   for(const [old,seen] of Object.entries(state.scans)) if(old<cutoff) for(const id of Object.keys(seen)) updates['scans/'+old+'/'+id]=null;
   commit(updates);watchDaily();
   return key;
+}
+// Codes change on the server's clock, so learn how far this device's clock is off.
+async function syncClock(){
+  try {
+    const sent=Date.now();
+    if(!(await fetch(teamUrl()+'/clock.json',{method:'PUT',body:'{".sv":"timestamp"}'})).ok) return;
+    const back=Date.now(), server=await (await fetch(teamUrl()+'/clock.json')).json();
+    if(Number.isFinite(server)) clockSkew=server-(sent+back)/2;
+  } catch {}
 }
 function loadQr(){
   return qrLib ??= new Promise((resolve,reject)=>{
@@ -682,96 +796,153 @@ function qrSvg(qr){
   return '<svg viewBox="0 0 '+(n+2*quiet)+' '+(n+2*quiet)+'" shape-rendering="crispEdges" role="img" aria-label="Mã QR chấm công hôm nay"><rect width="100%" height="100%" fill="#fff"/><path d="'+d+'" fill="#000"/></svg>';
 }
 function updateQrNote(){
-  if($('qrnote')) $('qrnote').textContent=Object.keys(daily?.in??{}).length+' người đã quét hôm nay';
+  if(!$('qrnote')) return;
+  const marks=Object.values(state.scans[today]??{}), ok=new Set(marks.filter(m=>m.ok===1).map(m=>m.sid)).size, waiting=marks.filter(m=>m.ok===0 && m.who).length;
+  $('qrnote').textContent=ok+' người đã chấm công bằng QR hôm nay'+(waiting?' · '+waiting+' lượt cần xem lại':'');
 }
-async function drawQr(fresh){
+// The place check: stamps from farther than the chosen radius around this spot go to the review list.
+function drawPlace(){
+  const box=$('qrplace');
+  if(!box) return;
+  const place=state.settings.geo;
+  box.innerHTML=place ? '<p>Chỉ nhận chấm công trong bán kính <select id="georadius" aria-label="Bán kính">'+[100,200,300,500,1000].map(r=>'<option value="'+r+'"'+(place.r===r?' selected':'')+'>'+r+' m</option>').join('')+'</select> quanh vị trí đã đặt. Ai ở xa hơn sẽ vào danh sách cần xem lại. <button type="button" class="linkbtn inline" id="geooff">Tắt kiểm tra vị trí</button></p>'
+    : '<p><button type="button" class="btn" id="geoon">'+icon('pin')+'<span>Chỉ nhận chấm công ở gần đây</span></button></p><p>Lấy vị trí của máy này làm tâm. Thành viên sẽ được hỏi quyền dùng vị trí khi chấm công.</p>';
+  const save=geo=>{commit({settings:{...state.settings,geo}});drawPlace();};
+  if(place){
+    $('georadius').onchange=e=>save({...place,r:Number(e.target.value)});
+    $('geooff').onclick=()=>save(null);
+  }else $('geoon').onclick=()=>{
+    if(!navigator.geolocation){toast('Máy này không lấy được vị trí');return;}
+    navigator.geolocation.getCurrentPosition(p=>save({lat:p.coords.latitude,lng:p.coords.longitude,r:200}),()=>toast('Chưa lấy được vị trí. Hãy cho phép trang dùng vị trí.'),{enableHighAccuracy:true,timeout:15000});
+  };
+}
+async function startQr(fresh){
+  clearInterval(qrTimer);
   try {
-    const [lib,key]=await Promise.all([loadQr(),ensureDaily(fresh)]);
-    if(!$('qrbox')) return;
-    const qr=lib(0,'M');
-    qr.addData(location.origin+location.pathname+'#qr='+targetCode({url:sync.url,key}));
-    qr.make();
-    $('qrbox').innerHTML=qrSvg(qr);
-    updateQrNote();
+    const [lib]=await Promise.all([loadQr(),ensureDaily(fresh),syncClock()]);
+    let shown='';
+    const draw=async()=>{
+      if(!$('qrbox') || !$('modal').open){clearInterval(qrTimer);return;}
+      const code=state.qr[today], slot=Math.floor((Date.now()+clockSkew)/STEP), sign=slot+'|'+code?.key+'|'+!!state.settings.geo;
+      if(!code?.s || sign===shown) return;
+      shown=sign;
+      const qr=lib(0,'M');
+      qr.addData(location.origin+location.pathname+'#qr='+targetCode({url:sync.url,key:code.key})+'&t='+await qrToken(code,slot)+(state.settings.geo?'&g=1':''));
+      qr.make();
+      if($('qrbox')) $('qrbox').innerHTML=qrSvg(qr);
+    };
+    await draw();updateQrNote();drawPlace();
+    qrTimer=setInterval(draw,500);
   } catch {
     if($('qrbox')) $('qrbox').textContent='Không tạo được mã QR. Kiểm tra kết nối mạng rồi thử lại.';
   }
 }
 function openQr(){
   if(!sync || !live){toast('Cần kết nối dữ liệu chung để dùng mã QR');openSync();return;}
-  openDialog('<h2 id="modal-title">Mã QR chấm công</h2><p>'+html(longDate.format(new Date()))+'. Thành viên quét bằng camera điện thoại, nhập họ tên, mã sinh viên, lớp, số điện thoại rồi bấm Vào ca hoặc Ra ca. Mã chỉ dùng được trong hôm nay.</p><div class="qrbox" id="qrbox">Đang tạo mã…</div><p id="qrnote"></p><div class="actions"><button type="button" class="btn" id="newqr">Tạo mã mới</button><span class="grow"></span><button type="button" class="btn primary" id="cancel">Đóng</button></div>');
+  openDialog('<h2 id="modal-title">Mã QR chấm công</h2><p>'+html(longDate.format(new Date()))+'. Thành viên quét trực tiếp trên màn hình này, nhập thông tin rồi bấm Vào ca hoặc Ra ca. <b>Mã tự đổi sau mỗi 15 giây</b> nên ảnh chụp gửi cho người khác sẽ không dùng được.</p><div class="qrbox" id="qrbox">Đang tạo mã…</div><p id="qrnote"></p><div id="qrplace"></div><div class="actions"><button type="button" class="btn" id="newqr">Tạo mã mới</button><span class="grow"></span><button type="button" class="btn primary" id="cancel">Đóng</button></div>');
   $('newqr').onclick=()=>{
     if(!confirm('Tạo mã mới? Mã QR đang dùng sẽ hết hiệu lực. Giờ của những người đã quét vẫn được giữ.')) return;
     $('qrbox').textContent='Đang tạo mã…';
-    drawQr(true);
+    startQr(true);
   };
-  drawQr(false);
+  // Keep the screen on while the code is being shown.
+  navigator.wakeLock?.request('screen').then(lock=>{wake=lock;}).catch(()=>{});
+  startQr(false);
 }
-// The page a member sees after scanning the code: fill in who you are, then stamp in or out.
+$('modal').addEventListener('close',()=>{clearInterval(qrTimer);wake?.release().catch(()=>{});wake=null;});
+// The page a member sees after scanning the code: say who you are, then stamp in or out.
 function startCheckin(target){
   checkin=true;
   document.body.classList.add('checkin');
-  const box=$('checkin'), base=target.url+'/daily/'+target.key;
-  let info, failed=false, busy=false, editing=false, me=null, entry='', tin=null, tout=null;
+  const box=$('checkin'), base=target.url+'/daily/'+target.key, token=hashParam('t'), needPlace=hashParam('g')==='1';
+  let info, failed=false, busy=false, editing=false, stale=false, problem='', me=null, ticket='', scanned=0, mine={}, dev='';
   box.hidden=false;
   try {
     const saved=JSON.parse(localStorage.getItem(ME_STORE));
     if(saved?.name && saved.studentId && saved.cls && saved.phone) me=saved;
+    const stamps=JSON.parse(localStorage.getItem(DAY_STORE));
+    if(stamps?.key===target.key && stamps.sid===me?.studentId) mine=stamps;
+    dev=localStorage.getItem(DEV_STORE)??'';
   } catch {}
+  // A random name for this phone, so one phone cannot quietly stamp for several people.
+  if(!dev){dev=randomKey();try {localStorage.setItem(DEV_STORE,dev);} catch {}}
+  mine.key=target.key;mine.sid=me?.studentId;
   const field=(label,name,attrs)=>'<label>'+label+'<input name="'+name+'" required '+attrs+' value="'+html(me?.[name]??'')+'"></label>';
   const draw=()=>{
     let body;
     if(failed) body='<h2>Không tải được dữ liệu</h2><p>Kiểm tra kết nối mạng rồi thử lại.</p><button type="button" class="btn primary big" data-do="reload">Thử lại</button>';
     else if(info===undefined) body='<p>Đang tải…</p>';
     else if(!info || info.date!==today || !info.pub) body='<h2>Mã QR đã hết hạn</h2><p>Mỗi ngày có một mã mới. Hãy quét mã QR của hôm nay trên màn hình của quản lý.</p>';
+    else if(stale) body='<h2>Mã QR này đã cũ</h2><p>Mã trên màn hình của quản lý đổi liên tục, nên ảnh chụp lại hoặc đường link cũ không dùng được. Hãy quét trực tiếp mã đang hiển thị.</p>';
     else if(!me || editing) body='<h2>Chấm công hôm nay</h2><p>Nhập đầy đủ thông tin của bạn. Máy này sẽ nhớ lại cho những lần sau.</p><form id="who">'+
       field('Họ và tên','name','maxlength="80" autocomplete="name" placeholder="Nguyễn Văn A"')+
       field('Mã sinh viên','studentId','maxlength="20" inputmode="numeric" pattern="[0-9A-Za-z]{5,20}" title="Mã sinh viên gồm 5 đến 20 chữ số hoặc chữ cái" autocomplete="off"')+
-      field('Lớp','cls','maxlength="30" autocomplete="off" placeholder="Ví dụ: 66CK1"')+
+      field('Lớp','cls','maxlength="30" autocomplete="off" placeholder="Ví dụ: DHCK17A1"')+
       field('Số điện thoại','phone','type="tel" maxlength="15" inputmode="tel" pattern="(0|\\+84)[0-9 .]{8,12}" title="Số điện thoại bắt đầu bằng 0 hoặc +84" autocomplete="tel"')+
       '<button type="submit" class="btn primary big">Tiếp tục</button></form>';
-    else body='<div class="me">'+avatar({id:me.studentId,name:me.name})+'<div><strong>'+html(me.name)+'</strong><small>'+html(me.studentId+' · '+me.cls)+'</small></div></div>'+
-      '<p>'+(tout?'Đã ra ca lúc '+hhmm(tout):tin?'Đang làm việc, vào ca lúc '+hhmm(tin):'Chưa chấm công hôm nay')+'</p>'+
-      (tin ? '<div class="times"><div><span>Giờ vào</span><b>'+hhmm(tin)+'</b></div><div><span>Giờ ra</span><b>'+(tout?hhmm(tout):'—')+'</b></div></div>' : '')+
-      '<button type="button" class="btn big'+(tout?'':' primary')+'" data-do="'+(tin?'out':'in')+'"'+(busy?' disabled':'')+'>'+icon(tin?'leave':'enter')+'<span>'+(busy?'Đang ghi…':tout?'Cập nhật giờ ra':tin?'Ra ca':'Vào ca')+'</span></button>'+
-      '<button type="button" class="linkbtn" data-do="edit">Sửa thông tin của tôi</button>';
+    else{
+      const tin=mine.in, tout=mine.out, expired=Date.now()-scanned>TICKET_LIFE-20000;
+      body='<div class="me">'+avatar({id:me.studentId,name:me.name})+'<div><strong>'+html(me.name)+'</strong><small>'+html(me.studentId+' · '+me.cls)+'</small></div></div>'+
+        '<p>'+(tout?'Đã ra ca lúc '+hhmm(tout):tin?'Đang làm việc, vào ca lúc '+hhmm(tin):'Chưa chấm công hôm nay')+'</p>'+
+        (tin ? '<div class="times"><div><span>Giờ vào</span><b>'+hhmm(tin)+'</b></div><div><span>Giờ ra</span><b>'+(tout?hhmm(tout):'—')+'</b></div></div>' : '')+
+        (problem ? '<p class="problem">'+problem+'</p>' : '')+
+        (expired ? '<p class="problem">Lượt quét đã hết hạn. Hãy quét lại mã QR trên màn hình của quản lý để tiếp tục.</p>'
+          : '<button type="button" class="btn big'+(tout?'':' primary')+'" data-do="'+(tin?'out':'in')+'"'+(busy?' disabled':'')+'>'+icon(tin?'leave':'enter')+'<span>'+(busy?'Đang ghi…':tout?'Cập nhật giờ ra':tin?'Ra ca':'Vào ca')+'</span></button>')+
+        '<button type="button" class="linkbtn" data-do="edit">Sửa thông tin của tôi</button>';
+    }
     box.innerHTML=body;
   };
-  const read=async url=>{
-    const res=await fetch(url);
-    if(!res.ok) throw new Error(res.status);
+  const read=async path=>{
+    const res=await fetch(base+path+'.json');
+    if(!res.ok) throw new Error('read');
     return res.json();
   };
+  // Send one encrypted message; the server stamps the time. Returns that time.
+  const send=async fields=>{
+    const key=randomKey();
+    const res=await fetch(base+'/in/'+key+'.json',{method:'PUT',body:JSON.stringify({t:{'.sv':'timestamp'},d:await seal(info.pub,fields)})});
+    if(!res.ok) throw new Error('write');
+    return [key,await read('/in/'+key+'/t')];
+  };
+  const locate=()=>new Promise((resolve,reject)=>{
+    if(!navigator.geolocation){reject(new Error('place'));return;}
+    navigator.geolocation.getCurrentPosition(p=>resolve({lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy)}),()=>reject(new Error('place')),{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+  });
   const load=async()=>{
     try {
-      info=await read(base+'/info.json');
-      if(info && me){
-        entry=await entryKey(target.key,me.studentId);
-        [tin,tout]=await Promise.all([read(base+'/in/'+entry+'/t.json'),read(base+'/out/'+entry+'.json')]);
+      info=await read('/info');
+      if(info?.date===today && info.pub && !ticket){
+        // Record the scan at once: the code on the manager's screen is only good for a short while.
+        const [key,at]=await send({a:'scan',k:token,dev});
+        ticket=key;scanned=Date.now();
+        stale=!inWindow(slotOf(token),at);
+        setTimeout(draw,TICKET_LIFE);
       }
       failed=false;
     } catch {failed=true;}
     draw();
   };
   const stamp=async kind=>{
-    busy=true;draw();
-    let ok=false;
+    busy=true;problem='';draw();
     try {
-      const body=kind==='in' ? {t:{'.sv':'timestamp'},d:await seal(info.pub,me)} : {'.sv':'timestamp'};
-      ok=(await fetch(base+'/'+kind+'/'+entry+'.json',{method:'PUT',body:JSON.stringify(body)})).ok;
-    } catch {}
-    busy=false;
-    await load();
-    const at=kind==='in' ? tin : tout;
-    toast(ok && at ? (kind==='in'?'Đã vào ca lúc ':'Đã ra ca lúc ')+hhmm(at) : at ? 'Giờ đã được ghi trước đó' : 'Chưa ghi được, hãy thử lại');
+      const loc=needPlace ? await locate() : null;
+      const [,at]=await send({a:kind,...me,s:ticket,dev,...(loc && {loc})});
+      mine[kind]=at;
+      try {localStorage.setItem(DAY_STORE,JSON.stringify(mine));} catch {}
+      toast((kind==='in'?'Đã vào ca lúc ':'Đã ra ca lúc ')+hhmm(at));
+    } catch(error) {
+      problem=error?.message==='place' ? 'Cần bật vị trí (GPS) và cho phép trang dùng vị trí thì mới chấm công được.' : 'Chưa ghi được. Kiểm tra mạng rồi thử lại.';
+    }
+    busy=false;draw();
   };
   box.addEventListener('submit',e=>{
     e.preventDefault();
     const values=Object.fromEntries(new FormData(e.target));
     me={name:tidy(values.name,80),studentId:tidy(values.studentId,20).replace(/\s/g,''),cls:tidy(values.cls,30),phone:tidy(values.phone,15)};
     try {localStorage.setItem(ME_STORE,JSON.stringify(me));} catch {}
-    editing=false;tin=tout=null;
-    load();
+    // The remembered in/out times belong to one person; start afresh when the details change to someone else.
+    if(mine.sid!==me.studentId) mine={key:target.key,sid:me.studentId};
+    editing=false;draw();
   });
   box.addEventListener('click',e=>{
     const b=e.target.closest('[data-do]');
@@ -892,20 +1063,22 @@ function clockRow(p){
     '<label class="tf tin"><span>Giờ vào</span><input type="time" data-field="in" aria-label="Giờ vào '+name+'"></label>'+
     '<label class="tf tout"><span>Giờ ra</span><input type="time" data-field="out" aria-label="Giờ ra '+name+'"></label>'+
     '<div class="hrs"><span>Số giờ</span><b data-cell="hours"></b></div>'+
-    '<div class="act"><button type="button" class="btn" data-action="clock"></button><select data-field="status" aria-label="Đánh dấu tay '+name+'">'+Object.entries(marks).map(([id,label])=>'<option value="'+id+'">'+label+'</option>').join('')+'</select></div></div>';
+    '<div class="act"><button type="button" class="btn" data-action="clock"></button><select data-field="status" title="Chọn khi người này không đi làm hôm đó" aria-label="Nghỉ hay vắng: '+name+'">'+Object.entries(marks).map(([id,label])=>'<option value="'+id+'">'+label+'</option>').join('')+'</select></div></div>';
 }
 // Fill one member's row from the saved record. Rows are patched in place so a field being typed in keeps focus.
 function syncRow(row){
   const d=day(), r=db.attendance[d]?.[row.dataset.person], s=judge(r,d);
   const off=r?.status==='leave' || r?.status==='absent';
   const [inEl,outEl]=row.querySelectorAll('input'), mark=row.querySelector('select');
+  if(oldMarks[r?.status] && ![...mark.options].some(o=>o.value===r.status)) mark.add(new Option(oldMarks[r.status],r.status));
   // Only write a value that differs: re-setting a time field mid-typing would reset the digits being entered.
   if(inEl.value!==(r?.in??'')) inEl.value=r?.in??'';
   if(outEl.value!==(r?.out??'')) outEl.value=r?.out??'';
   if(mark.value!==(r?.status??'')) mark.value=r?.status??'';
   inEl.disabled=off;outEl.disabled=!r?.in;
   row.querySelector('[data-cell=hours]').textContent=duration(worked(r));
-  row.querySelector('[data-cell=state]').innerHTML=chip(s);
+  const otherPhone=Object.values(state.scans[d]??{}).some(m=>m.p===row.dataset.person && m.warn);
+  row.querySelector('[data-cell=state]').innerHTML=chip(s)+(otherPhone ? ' <span class="chip warn" title="Lần chấm công bằng QR này đến từ một điện thoại khác với lần trước"><i></i>Khác điện thoại</span>' : '');
   // The clock button only exists for today: it stamps the current time, which would be wrong for another date.
   const next=off || d!==today ? '' : !r?.in ? 'in' : !r.out ? 'out' : '';
   const b=row.querySelector('[data-action=clock]');
@@ -919,8 +1092,9 @@ function syncAttendance(){
   for(const row of $('panel').querySelectorAll('[data-person]')) syncRow(row);
   const n=attCounts();
   for(const b of $('panel').querySelectorAll('[data-filter=att]')) b.querySelector('b').textContent=n[b.dataset.value];
-  const rest=$('panel').querySelector('[data-action="clock-rest"]');
-  if(rest) rest.disabled=!n.idle;
+  const waiting=reviewList(day());
+  if($('review') && waiting!==reviewShown){$('review').innerHTML=waiting;reviewShown=waiting;}
+  updateQrNote();
 }
 function renderStats(){
   const d=day(), records=db.attendance[d]??{}, total=db.people.length;
@@ -943,18 +1117,18 @@ function renderStats(){
 function renderPanel(){
   for(const b of tabs){const on=b.dataset.tab===tab;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;}
   $('panel').setAttribute('aria-labelledby','tab-'+tab);
-  const csv=btn('','csv',{ic:'download',cls:'icononly',title:'Xuất CSV'});
+  const csv=btn('Xuất Excel','excel',{ic:'download'});
   let title, note='', controls, body;
   if(tab==='attendance'){
     const d=day(), records=db.attendance[d]??{}, {start,end,grace}=db.settings, q=fold(query.trim());
     title='Chấm công ngày '+html(date(d));
     note=start||end ? 'Ca làm việc '+(start||'…')+' – '+(end||'…')+(start&&grace?' · cho phép trễ '+grace+' phút':'') : 'Chưa đặt giờ ca, không tính đi muộn hay về sớm';
     if(d!==today) note+=' · Ngày khác hôm nay: nhập giờ trực tiếp vào ô';
-    controls=(d===today?btn('Mã QR','qr',{ic:'qr'})+btn('Vào ca tất cả','clock-rest',{ic:'enter'}):'')+btn('Ca làm việc','shift',{ic:'sliders'})+csv+btn('Thành viên','person',{ic:'plus',cls:'primary'});
+    controls=(d===today?btn('Mã QR','qr',{ic:'qr'}):'')+btn('Ca làm việc','shift',{ic:'sliders'})+csv+btn('Thành viên','person',{ic:'plus',cls:'primary'});
     const list=db.people.filter(p=>(attFilter==='all' || judge(records[p.id],d).kind===attFilter) && (!q || fold(p.name+' '+p.studentId+' '+p.cls).includes(q)));
-    rosterShown=rosterKey();
+    rosterShown=rosterKey();reviewShown='';
     body=!db.people.length ? empty('users','Chưa có thành viên. Thêm thành viên để bắt đầu chấm công.',btn('Thêm thành viên','person',{ic:'plus',cls:'primary'})+(db.tasks.length?'':btn('Nạp dữ liệu mẫu','demo')))
-      : '<div class="filters"><label class="search">'+icon('search')+'<input type="search" id="search" placeholder="Tìm theo tên, mã sinh viên hoặc lớp" aria-label="Tìm thành viên" value="'+html(query)+'"></label>'+attChips()+'</div>'+
+      : '<div id="review"></div><div class="filters"><label class="search">'+icon('search')+'<input type="search" id="search" placeholder="Tìm theo tên, mã sinh viên hoặc lớp" aria-label="Tìm thành viên" value="'+html(query)+'"></label>'+attChips()+'</div>'+
         (list.length ? '<div class="att" role="list"><div class="lhead" aria-hidden="true"><span>Thành viên</span><span>Trạng thái</span><span>Giờ vào</span><span>Giờ ra</span><span>Số giờ</span><span></span></div>'+list.map(clockRow).join('')+'</div>' : empty('search','Không có thành viên phù hợp.'));
   }else if(tab==='sheet'){
     const days=monthDays(month), sums=['Công','Muộn','Phép','Vắng','Giờ'];
@@ -992,14 +1166,14 @@ function renderPanel(){
     const days=monthDays(today.slice(0,7));
     title='Thành viên';
     note=db.people.length+' người trong đội';
-    controls=csv+btn('Thêm thành viên','person',{ic:'plus',cls:'primary'});
+    controls=btn('Nhập từ Excel','import',{ic:'upload'})+csv+btn('Thêm thành viên','person',{ic:'plus',cls:'primary'});
     body=db.people.length ? '<div class="ppl" role="list"><div class="lhead" aria-hidden="true"><span>Thành viên</span><span>Điện thoại</span><span>Tháng này</span><span></span></div>'+db.people.map(p=>{
       const own=db.tasks.filter(t=>t.owner===p.id), t=tally(p.id,days);
       return '<div class="row" role="listitem">'+who(p,idLine(p))+
         '<div class="phone">'+(p.phone?'<a href="tel:'+html(p.phone.replace(/[^\d+]/g,''))+'">'+html(p.phone)+'</a>':'<span class="sub">—</span>')+'</div>'+
         '<div class="sub stats-cell">'+t.work+' ngày công · việc '+own.filter(x=>x.progress===100).length+'/'+own.length+'</div>'+
         '<div class="act">'+btn('Sửa','person',{id:p.id,ic:'edit'})+'</div></div>';
-    }).join('')+'</div>' : empty('users','Chưa có thành viên.',btn('Thêm thành viên','person',{ic:'plus',cls:'primary'}));
+    }).join('')+'</div>' : empty('users','Chưa có thành viên.',btn('Nhập từ Excel','import',{ic:'upload'})+btn('Thêm thành viên','person',{ic:'plus',cls:'primary'}));
   }
   $('panel').innerHTML='<div class="toolbar"><div><h2>'+title+'</h2>'+(note?'<p>'+note+'</p>':'')+'</div><div class="actions">'+controls+'</div></div>'+body;
   if(tab==='attendance') syncAttendance();
@@ -1038,7 +1212,7 @@ function editShift(){
   const {start,end,grace}=db.settings;
   openDialog('<h2 id="modal-title">Ca làm việc</h2><label>Giờ bắt đầu<input name="start" type="time" value="'+start+'"></label><label>Giờ kết thúc<input name="end" type="time" value="'+end+'"></label><label>Cho phép trễ (phút)<input name="grace" type="number" inputmode="numeric" required min="0" max="120" step="1" value="'+grace+'"></label><p>Vào ca sau giờ bắt đầu tính là đi muộn, ra ca trước giờ kết thúc tính là về sớm. Để trống giờ nếu không cần tính.</p>'+dialogButtons(),form=>{
     const values=Object.fromEntries(new FormData(form));
-    commit({settings:{start:values.start,end:values.end,grace:Number(values.grace)}});
+    commit({settings:{...state.settings,start:values.start,end:values.end,grace:Number(values.grace)}});
     $('modal').close();render();refocus('shift','');
   });
 }
@@ -1093,15 +1267,207 @@ function openSync(){
 
 // ---- Actions ----
 function saveRecord(id,record){commit({['attendance/'+day()+'/'+id]:record});}
-function exportCsv(){
-  let rows, name=({attendance:'cham-cong',sheet:'bang-cong-'+month,tasks:'ke-hoach',people:'thanh-vien'})[tab];
-  if(tab==='attendance') rows=[['Ngày','Thành viên','Giờ vào','Giờ ra','Số giờ','Trạng thái'],...[...new Set([...Object.keys(db.attendance),day()])].sort().flatMap(d=>db.people.map(p=>{const r=db.attendance[d]?.[p.id];return [d,p.name,r?.in??'',r?.out??'',worked(r)?clockTotal(worked(r)):'',judge(r,d).label];}))];
-  else if(tab==='sheet'){const days=monthDays(month);rows=[['Thành viên',...days.map(d=>Number(d.slice(8))),'Công','Muộn','Phép','Vắng','Giờ'],...db.people.map(p=>{const t=tally(p.id,days);return [p.name,...t.codes,t.work,t.late,t.leave,t.absent,clockTotal(t.minutes)];})];}
-  else if(tab==='people') rows=[['Thành viên','Mã sinh viên','Lớp','Số điện thoại','Đã hoàn thành','Tổng công việc','Tiến độ trung bình'],...db.people.map(p=>{const own=db.tasks.filter(t=>t.owner===p.id);return [p.name,p.studentId,p.cls,p.phone,own.filter(t=>t.progress===100).length,own.length,avg(own)];})];
-  else rows=[['Công việc','Phụ trách','Hạn hoàn thành','Tiến độ (%)'],...db.tasks.map(t=>[t.title,person(t.owner),t.due,t.progress])];
-  const csv=rows.map(row=>row.map(value=>{let s=String(value);if(/^[\s]*[=+@-]|^[\t\r\n]/.test(s)) s="'"+s;return '"'+s.replaceAll('"','""')+'"';}).join(',')).join('\r\n');
-  const url=URL.createObjectURL(new Blob(['﻿',csv],{type:'text/csv;charset=utf-8'}));
-  const link=document.createElement('a');link.href=url;link.download=name+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+// ---- Excel ----
+// An .xlsx file is a zip of small XML files. Writing one directly gives real columns on any computer (a CSV breaks
+// where the list separator is ";"), keeps student IDs and phone numbers as text (no 2.5E+10, no lost leading zero),
+// and needs no library. Reading goes the other way: unzip, then read the first sheet's cells.
+const crcTable = (()=>{
+  const table=new Uint32Array(256);
+  for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++) c=c&1 ? 0xEDB88320^(c>>>1) : c>>>1;table[n]=c;}
+  return table;
+})();
+function crc32(bytes){let c=-1;for(const b of bytes) c=crcTable[(c^b)&255]^(c>>>8);return (c^-1)>>>0;}
+// files: [{name,text}] -> zip Blob, stored without compression.
+function zip(files,type){
+  const enc=new TextEncoder(), parts=[], central=[];
+  let offset=0;
+  for(const file of files){
+    const name=enc.encode(file.name), data=enc.encode(file.text), crc=crc32(data);
+    const head=new DataView(new ArrayBuffer(30)), dir=new DataView(new ArrayBuffer(46));
+    head.setUint32(0,0x04034b50,true);head.setUint16(4,20,true);head.setUint16(6,0x0800,true);head.setUint16(12,0x21,true);
+    head.setUint32(14,crc,true);head.setUint32(18,data.length,true);head.setUint32(22,data.length,true);head.setUint16(26,name.length,true);
+    dir.setUint32(0,0x02014b50,true);dir.setUint16(4,20,true);dir.setUint16(6,20,true);dir.setUint16(8,0x0800,true);dir.setUint16(14,0x21,true);
+    dir.setUint32(16,crc,true);dir.setUint32(20,data.length,true);dir.setUint32(24,data.length,true);dir.setUint16(28,name.length,true);dir.setUint32(42,offset,true);
+    parts.push(head,name,data);central.push(dir,name);
+    offset+=30+name.length+data.length;
+  }
+  const size=central.reduce((n,part)=>n+part.byteLength,0), end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);end.setUint32(12,size,true);end.setUint32(16,offset,true);
+  return new Blob([...parts,...central,end],{type});
+}
+function colName(i){let s='';for(i++;i>0;i=Math.floor((i-1)/26)) s=String.fromCharCode(65+(i-1)%26)+s;return s;}
+function xmlText(value){return String(value).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// One sheet: first row is a bold, frozen header; numbers stay numbers, everything else is text.
+function workbook(sheetName,rows){
+  const widths=[], ns='xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"', doc='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  const rel='http://schemas.openxmlformats.org/officeDocument/2006/relationships', pkg='http://schemas.openxmlformats.org/package/2006/relationships';
+  const body=rows.map((row,r)=>'<row r="'+(r+1)+'">'+row.map((value,c)=>{
+    const text=String(value??''), ref=colName(c)+(r+1);
+    widths[c]=Math.max(widths[c]??0,Math.min(50,text.length));
+    if(text==='') return r ? '' : '<c r="'+ref+'" s="1"/>';
+    if(typeof value==='number' && Number.isFinite(value)) return '<c r="'+ref+'"'+(r?'':' s="1"')+'><v>'+value+'</v></c>';
+    return '<c r="'+ref+'" s="'+(r?2:1)+'" t="inlineStr"><is><t xml:space="preserve">'+xmlText(text)+'</t></is></c>';
+  }).join('')+'</row>').join('');
+  const cols=widths.map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+(Math.max(3,w)*1.2+2).toFixed(1)+'" customWidth="1"/>').join('');
+  return zip([
+    {name:'[Content_Types].xml',text:doc+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'},
+    {name:'_rels/.rels',text:doc+'<Relationships xmlns="'+pkg+'"><Relationship Id="rId1" Type="'+rel+'/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+    {name:'xl/workbook.xml',text:doc+'<workbook '+ns+' xmlns:r="'+rel+'"><bookViews><workbookView/></bookViews><sheets><sheet name="'+xmlText(sheetName.replace(/[\[\]:*?\/\\]/g,'-').slice(0,31))+'" sheetId="1" r:id="rId1"/></sheets></workbook>'},
+    {name:'xl/_rels/workbook.xml.rels',text:doc+'<Relationships xmlns="'+pkg+'"><Relationship Id="rId1" Type="'+rel+'/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="'+rel+'/styles" Target="styles.xml"/></Relationships>'},
+    {name:'xl/styles.xml',text:doc+'<styleSheet '+ns+'><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDCE9F2"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>'},
+    {name:'xl/worksheets/sheet1.xml',text:doc+'<worksheet '+ns+'><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'+cols+'</cols><sheetData>'+body+'</sheetData></worksheet>'}
+  ],'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+function download(blob,name){
+  const url=URL.createObjectURL(blob), link=document.createElement('a');
+  link.href=url;link.download=name;link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+// What the manager is looking at, as a spreadsheet.
+function exportTable(){
+  const hours=m=>Math.round(m/6)/10;
+  if(tab==='attendance'){
+    const d=day();
+    return ['cham-cong-'+d,'Chấm công '+date(d).replaceAll('/','-'),[['STT','Họ và tên','Mã sinh viên','Lớp','Giờ vào','Giờ ra','Số giờ','Trạng thái'],...db.people.map((p,i)=>{const r=db.attendance[d]?.[p.id];return [i+1,p.name,p.studentId,p.cls,r?.in??'',r?.out??'',worked(r)?hours(worked(r)):'',judge(r,d).label];})]];
+  }
+  if(tab==='sheet'){
+    const days=monthDays(month);
+    return ['bang-cong-'+month,'Bảng công '+month.slice(5)+'-'+month.slice(0,4),[['STT','Họ và tên','Mã sinh viên','Lớp',...days.map(d=>Number(d.slice(8))),'Công','Muộn','Phép','Vắng','Giờ'],...db.people.map((p,i)=>{const t=tally(p.id,days);return [i+1,p.name,p.studentId,p.cls,...t.codes,t.work,t.late,t.leave,t.absent,hours(t.minutes)];})]];
+  }
+  if(tab==='people') return ['thanh-vien','Thành viên',[['STT','Họ và tên','Mã sinh viên','Lớp','Số điện thoại'],...db.people.map((p,i)=>[i+1,p.name,p.studentId,p.cls,p.phone])]];
+  return ['cong-viec','Công việc',[['STT','Công việc','Phụ trách','Hạn hoàn thành','Tiến độ (%)','Trạng thái'],...db.tasks.slice().sort((a,b)=>a.due.localeCompare(b.due)).map((t,i)=>[i+1,t.title,person(t.owner),date(t.due),t.progress,t.progress===100?'Hoàn thành':overdue(t)?'Quá hạn':t.progress===0?'Chưa bắt đầu':'Đang thực hiện'])]];
+}
+function exportExcel(){
+  const [name,sheet,rows]=exportTable();
+  download(workbook(sheet,rows),name+'.xlsx');
+}
+// Text copied out of a spreadsheet (tabs), or a CSV with "," or ";".
+function parseDelimited(text){
+  const first=text.split(/\r?\n/,1)[0];
+  const sep=first.includes('\t') ? '\t' : first.split(';').length>first.split(',').length ? ';' : ',';
+  const rows=[];
+  let row=[], cell='', quoted=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(quoted){
+      if(ch!=='"') cell+=ch;
+      else if(text[i+1]==='"'){cell+='"';i++;}
+      else quoted=false;
+    }
+    else if(ch==='"' && cell==='') quoted=true;
+    else if(ch===sep){row.push(cell);cell='';}
+    else if(ch==='\n' || ch==='\r'){
+      if(ch==='\r' && text[i+1]==='\n') i++;
+      row.push(cell);rows.push(row);row=[];cell='';
+    }
+    else cell+=ch;
+  }
+  if(cell!=='' || row.length){row.push(cell);rows.push(row);}
+  return rows;
+}
+// First sheet of an .xlsx file as rows of text.
+async function readXlsx(buffer){
+  const bytes=new Uint8Array(buffer), view=new DataView(buffer), files={};
+  let end=bytes.length-22;
+  while(end>=0 && view.getUint32(end,true)!==0x06054b50) end--;
+  if(end<0) throw new Error('zip');
+  for(let i=0, p=view.getUint32(end+16,true);i<view.getUint16(end+10,true) && view.getUint32(p,true)===0x02014b50;i++){
+    const nameLength=view.getUint16(p+28,true);
+    files[new TextDecoder().decode(bytes.subarray(p+46,p+46+nameLength))]={method:view.getUint16(p+10,true),size:view.getUint32(p+20,true),at:view.getUint32(p+42,true)};
+    p+=46+nameLength+view.getUint16(p+30,true)+view.getUint16(p+32,true);
+  }
+  const text=async name=>{
+    const file=files[name];
+    if(!file) return '';
+    const start=file.at+30+view.getUint16(file.at+26,true)+view.getUint16(file.at+28,true), raw=bytes.subarray(start,start+file.size);
+    return file.method===0 ? new TextDecoder().decode(raw) : new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+  };
+  const xml=async name=>new DOMParser().parseFromString(await text(name) || '<none/>','application/xml');
+  const book=await xml('xl/workbook.xml'), rels=await xml('xl/_rels/workbook.xml.rels');
+  const first=book.getElementsByTagName('sheet')[0]?.getAttribute('r:id');
+  const target=[...rels.getElementsByTagName('Relationship')].find(r=>r.getAttribute('Id')===first)?.getAttribute('Target') ?? 'worksheets/sheet1.xml';
+  const shared=[...(await xml('xl/sharedStrings.xml')).getElementsByTagName('si')].map(si=>[...si.getElementsByTagName('t')].filter(t=>t.parentNode.localName!=='rPh').map(t=>t.textContent).join(''));
+  const rows=[];
+  for(const row of (await xml('xl/'+target.replace(/^\/?(xl\/)?/,''))).getElementsByTagName('row')){
+    const cells=[];
+    for(const c of row.getElementsByTagName('c')){
+      const letters=(c.getAttribute('r')??'').replace(/\d/g,''), type=c.getAttribute('t'), v=c.getElementsByTagName('v')[0]?.textContent??'';
+      let col=0;
+      for(const ch of letters) col=col*26+ch.charCodeAt(0)-64;
+      // A long number such as a student ID may be written as 2.51043E+10; give back its plain digits.
+      cells[col-1]=type==='s' ? shared[v]??'' : type==='inlineStr' ? [...c.getElementsByTagName('t')].map(t=>t.textContent).join('') : /^-?[\d.]+E[+-]?\d+$/i.test(v) ? String(Number(v)) : v;
+    }
+    rows.push(Array.from(cells,cell=>cell??''));
+  }
+  return rows;
+}
+// Rows of a spreadsheet -> people. Columns are found by their header; without one the order is name, ID, class, phone.
+function peopleFromRows(rows){
+  rows=rows.map(row=>row.map(cell=>tidy(cell,200))).filter(row=>row.some(Boolean));
+  if(!rows.length) return [];
+  const words={studentId:['ma sinh vien','ma sv','mssv','msv','ma so'],phone:['dien thoai','sdt','phone','so dt'],cls:['lop','class'],name:['ho va ten','ho ten','ten','name','thanh vien']};
+  const head=rows[0].map(cell=>fold(cell).replace(/[^a-z0-9]+/g,' ').trim()), at={};
+  for(const [field,list] of Object.entries(words)){
+    const i=head.findIndex((h,k)=>!Object.values(at).includes(k) && list.some(w=>h===w || h.includes(w)));
+    if(i>=0) at[field]=i;
+  }
+  let data=rows.slice(1);
+  if(at.name===undefined){
+    const skip=rows.every(row=>/^\d{1,4}$/.test(row[0])) ? 1 : 0;   // a leading running-number column
+    Object.assign(at,{name:skip,studentId:skip+1,cls:skip+2,phone:skip+3});
+    data=rows;
+  }
+  return data.map(row=>{
+    let phone=(row[at.phone]??'').replace(/[\s.\-()]/g,'');
+    if(/^[1-9]\d{8}$/.test(phone)) phone='0'+phone;   // a phone number typed as a number loses its leading zero
+    return {name:row[at.name]??'',studentId:(row[at.studentId]??'').replace(/\s/g,''),cls:row[at.cls]??'',phone};
+  }).filter(p=>p.name);
+}
+// What importing a list would change: new members are added, known ones get the fields the sheet provides.
+function planImport(list){
+  const updates={}, seen=new Set();
+  let added=0, changed=0, same=0, order=Object.values(state.people).reduce((max,p)=>Math.max(max,p.order),-1);
+  for(const who of list){
+    const mark=(who.studentId || fold(who.name)).toUpperCase(), found=findPerson(who);
+    if(seen.has(mark)) continue;
+    seen.add(mark);
+    if(!found){
+      const id=who.studentId ? 'm'+who.studentId.replace(/[^A-Za-z0-9_-]/g,'_') : 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+      updates['people/'+id]={...who,order:++order};added++;
+      continue;
+    }
+    const [id,p]=found, next={...p,name:who.name,studentId:who.studentId||p.studentId,cls:who.cls||p.cls,phone:who.phone||p.phone};
+    if(['name','studentId','cls','phone'].some(k=>next[k]!==p[k])){updates['people/'+id]=next;changed++;} else same++;
+  }
+  return {updates,added,changed,same};
+}
+function openImport(){
+  let list=[];
+  openDialog('<h2 id="modal-title">Nhập thành viên từ Excel</h2><p>Chọn file Excel (.xlsx), hoặc bôi chọn các ô trong Excel, chép rồi dán vào khung bên dưới. Hàng đầu nên có tiêu đề <b>Họ và tên, Mã sinh viên, Lớp, Số điện thoại</b>.</p><label>File Excel<input type="file" id="xfile" accept=".xlsx,.csv,.txt"></label><label>Hoặc dán từ Excel<textarea id="xpaste" rows="5" placeholder="Họ và tên&#9;Mã sinh viên&#9;Lớp&#9;Số điện thoại"></textarea></label><p id="xresult" role="status"></p><div class="actions"><button type="button" class="btn" id="xsample">Tải file mẫu</button><span class="grow"></span><button type="button" class="btn" id="cancel">Hủy</button><button class="btn primary" type="submit" id="xgo" disabled>Nhập</button></div>',()=>{
+    const plan=planImport(list);
+    commit(plan.updates);
+    $('modal').close();render();
+    toast('Đã thêm '+plan.added+' người, cập nhật '+plan.changed+' người');
+  });
+  const show=rows=>{
+    list=peopleFromRows(rows);
+    const plan=planImport(list);
+    $('xresult').textContent=list.length ? 'Tìm thấy '+list.length+' người: '+plan.added+' người mới, '+plan.changed+' người được cập nhật, '+plan.same+' người không đổi.' : 'Không tìm thấy dòng nào có họ tên.';
+    $('xgo').disabled=!(plan.added+plan.changed);
+  };
+  $('xfile').onchange=async e=>{
+    const file=e.target.files[0];
+    if(!file) return;
+    try {
+      if(!/\.(xlsx|csv|txt)$/i.test(file.name)) throw new Error('type');
+      show(/\.xlsx$/i.test(file.name) ? await readXlsx(await file.arrayBuffer()) : parseDelimited(await file.text()));
+    } catch {
+      list=[];$('xgo').disabled=true;
+      $('xresult').textContent='Không đọc được file này. Hãy lưu lại dạng .xlsx, hoặc chép các ô rồi dán vào khung bên dưới.';
+    }
+  };
+  $('xpaste').oninput=e=>show(parseDelimited(e.target.value));
+  $('xsample').onclick=()=>download(workbook('Thành viên',[['STT','Họ và tên','Mã sinh viên','Lớp','Số điện thoại'],[1,'Nguyễn Văn A','25104300001','DHCK17A1','0912345678']]),'mau-thanh-vien.xlsx');
 }
 function loadDemo(){
   if(!confirm('Thêm danh sách và công việc minh họa?')) return;
@@ -1144,18 +1510,15 @@ $('panel').addEventListener('click',e=>{
     renderStats();syncAttendance();
     // After clocking out the button is gone; keep keyboard focus in the row.
     if(b.hidden) row.querySelector('[data-field=out]').focus();
-  }else if(action==='clock-rest'){
-    const d=day(), records=db.attendance[d]??{}, time=nowTime(), updates={};
-    for(const p of db.people) if(!records[p.id]) updates['attendance/'+d+'/'+p.id]={in:time};
-    commit(updates);
-    toast(Object.keys(updates).length+' người vào ca lúc '+time);
-    renderStats();syncAttendance();
   }else if(action==='month'){
     month=id==='0' ? today.slice(0,7) : addMonth(month,Number(id));
     renderPanel();refocus(action,id);
   }else if(action==='shift') editShift();
   else if(action==='qr') openQr();
-  else if(action==='csv') exportCsv();
+  else if(action==='excel') exportExcel();
+  else if(action==='import') openImport();
+  else if(action==='accept') acceptStamp(day(),id);
+  else if(action==='dismiss') dismissStamp(day(),id);
   else if(action==='demo') loadDemo();
   else edit(action,id);
 });
