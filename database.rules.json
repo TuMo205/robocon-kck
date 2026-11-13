@@ -1,0 +1,30 @@
+{
+  "rules": {
+    "teams": {
+      "$key": {
+        ".read": "$key.length >= 24",
+        ".write": "$key.length >= 24"
+      }
+    },
+    "daily": {
+      "$day": {
+        ".read": "$day.length >= 24",
+        "info": {
+          ".write": "$day.length >= 24 && !data.exists()"
+        },
+        "in": {
+          "$entry": {
+            ".write": "$day.length >= 24 && !data.exists() && newData.exists() && root.child('daily').child($day).child('info').exists()",
+            ".validate": "newData.child('t').val() === now && newData.child('d').isString() && newData.child('d').val().length < 1500"
+          }
+        },
+        "out": {
+          "$entry": {
+            ".write": "$day.length >= 24 && newData.exists() && root.child('daily').child($day).child('in').child($entry).exists()",
+            ".validate": "newData.val() === now"
+          }
+        }
+      }
+    }
+  }
+}

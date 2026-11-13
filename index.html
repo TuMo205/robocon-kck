@@ -1,0 +1,1241 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ROBOCON KCK · Chấm công và kế hoạch</title>
+<meta name="description" content="Chấm công giờ vào, giờ ra và theo dõi tiến độ công việc của đội ROBOCON KCK.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#173e57">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ROBOCON KCK · Chấm công và kế hoạch">
+<meta property="og:image" content="https://tumo205.github.io/robocon-kck/icon.png">
+<meta property="og:description" content="Chấm công giờ vào, giờ ra và theo dõi tiến độ công việc của đội ROBOCON KCK.">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--bg:#f2f5fa;--surface:#fff;--soft:#f6f8fc;--ink:#0f1b2d;--muted:#5d6b82;--line:#e1e7f0;--field:#cdd5e2;--navy:#173e57;--accent:#1f6690;--accent-d:#174f72;--ok:#0b7a4b;--ok-bg:#e2f6eb;--warn:#93500a;--warn-bg:#fff0d4;--bad:#b42318;--bad-bg:#fde8e6;--info:#1d4fd7;--info-bg:#e6eeff;--idle-bg:#edf0f5;--shadow:0 1px 2px rgba(15,27,45,.05),0 10px 28px -14px rgba(15,27,45,.22);font:15px/1.45 "Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);-webkit-text-size-adjust:100%}
+*{box-sizing:border-box}
+body{margin:0}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled,input:disabled{cursor:default;opacity:.5}
+[hidden]{display:none!important}
+svg{width:18px;height:18px;flex:none}
+:focus-visible{outline:3px solid rgba(31,102,144,.5);outline-offset:2px}
+.wrap{max-width:1160px;margin:auto;padding:0 24px}
+
+/* Header band */
+.top{color:#fff;background:radial-gradient(560px 320px at 94% -25%,rgba(110,184,226,.5),transparent 70%),radial-gradient(700px 380px at 6% 135%,rgba(24,110,150,.55),transparent 70%),linear-gradient(135deg,#12344a,#235a7c);padding-bottom:70px}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;height:68px}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.brand img{display:block;width:auto;height:46px;padding:3px 4px;border-radius:11px;background:#fff}
+.brand b{display:block;font-size:18px;font-weight:800;letter-spacing:.02em;line-height:1.15;white-space:nowrap}
+.brand small{color:#c3d8e6;font-size:12.5px}
+.syncchip{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 13px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.1);color:#fff;font-weight:600;font-size:13px;white-space:nowrap}
+.syncchip:hover{background:rgba(255,255,255,.18)}
+.syncchip i{width:8px;height:8px;border-radius:50%;background:#9fb0c9}
+.syncchip.ok i{background:#4ade80}
+.syncchip.wait i{background:#fbbf24;animation:pulse 1s infinite}
+.syncchip.warn i{background:#fb923c}
+@keyframes pulse{50%{opacity:.35}}
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-top:16px}
+.hero p{margin:0 0 4px;color:#c3d8e6;font-weight:500}
+.hero p::first-letter{text-transform:uppercase}
+.hero time{display:block;font-size:clamp(40px,7vw,60px);font-weight:800;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.daypick{display:grid;gap:6px;color:#c3d8e6;font-size:12.5px;font-weight:500}
+.daypick input{height:40px;border-radius:11px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);color:#fff;padding:0 11px;color-scheme:dark}
+
+/* Summary cards */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:-46px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:16px 18px;min-width:0}
+.shead{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;font-weight:600;margin-bottom:8px}
+.ic{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;flex:none}
+.tone-accent{background:#e4f0f7;color:var(--accent)}
+.tone-ok{background:var(--ok-bg);color:var(--ok)}
+.tone-info{background:var(--info-bg);color:var(--info)}
+.tone-bad{background:var(--bad-bg);color:var(--bad)}
+.stat strong{display:block;font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1.2;font-variant-numeric:tabular-nums}
+.stat small{display:block;color:var(--muted);font-size:12.5px}
+.meter{height:6px;border-radius:6px;background:#e8ecf3;overflow:hidden;margin-top:9px}
+.meter i{display:block;height:100%;border-radius:6px;background:var(--accent)}
+
+/* Tabs: a segmented control on wide screens, a bottom bar on phones */
+.tabs{display:inline-flex;gap:3px;padding:4px;margin:22px 0 14px;background:#e4e9f2;border-radius:13px}
+.tabs button{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 15px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-weight:600;white-space:nowrap}
+.tabs button[aria-selected=true]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(15,27,45,.14)}
+.tabs button[aria-selected=true] svg{color:var(--accent)}
+
+/* Panel */
+.notice{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:18px;padding:12px 16px;border-radius:14px;background:#fff7ea;border:1px solid #f6dfb5;color:#6b4406;font-size:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:18px 20px}
+.toolbar h2{margin:0;font-size:20px;font-weight:700;letter-spacing:-.01em}
+.toolbar p{margin:3px 0 0;color:var(--muted);font-size:13px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--field);background:#fff;font-weight:600;white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--soft)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover:not(:disabled){background:var(--accent-d);border-color:var(--accent-d)}
+.btn.icononly{width:38px;padding:0}
+.panel input,.panel select,dialog input,dialog select{height:38px;border:1px solid var(--field);border-radius:10px;padding:0 11px;background:#fff;min-width:0}
+.panel input:focus,.panel select:focus,dialog input:focus,dialog select:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px rgba(31,102,144,.2)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:0 20px 14px}
+.search{position:relative;flex:1 1 220px;max-width:300px}
+.search svg{position:absolute;left:11px;top:10px;color:var(--muted)}
+.search input{width:100%;padding-left:36px}
+.fchip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted);font-weight:600;font-size:13px;white-space:nowrap}
+.fchip b{font-weight:700;color:var(--ink)}
+.fchip[aria-pressed=true]{background:var(--navy);border-color:var(--navy);color:#fff}
+.fchip[aria-pressed=true] b{color:#fff}
+
+/* Lists */
+.lhead,.row{display:grid;gap:14px;align-items:center;padding:12px 20px}
+.lhead{padding-top:9px;padding-bottom:9px;background:var(--soft);color:var(--muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;border-top:1px solid var(--line)}
+.row{border-top:1px solid var(--line)}
+.row:hover{background:#fafbfe}
+.att .lhead,.att .row{grid-template-columns:minmax(180px,1.4fr) minmax(160px,1.1fr) 140px 140px 64px 236px}
+.tsk .lhead,.tsk .row{grid-template-columns:minmax(220px,2fr) minmax(150px,1fr) 150px 112px}
+.ppl .lhead,.ppl .row{grid-template-columns:minmax(220px,1.5fr) 130px minmax(200px,1.3fr) 112px}
+.who{display:flex;align-items:center;gap:11px;min-width:0}
+.who>div{min-width:0}
+.who strong{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who small{display:block;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.av{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;flex:none;font-weight:700;font-size:13px;background:hsl(var(--h) 70% 91%);color:hsl(var(--h) 55% 27%)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12.5px;font-weight:600;line-height:1.35;background:var(--ok-bg);color:var(--ok)}
+.chip i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.chip.warn{background:var(--warn-bg);color:var(--warn)}
+.chip.bad{background:var(--bad-bg);color:var(--bad)}
+.chip.info{background:var(--info-bg);color:var(--info)}
+.chip.idle{background:var(--idle-bg);color:var(--muted)}
+.tf span{display:none}
+.tf input{width:100%}
+.hrs{font-variant-numeric:tabular-nums;font-weight:600}
+.hrs span{display:none}
+.act{display:flex;gap:8px;justify-content:flex-end}
+.att .act select{flex:1}
+.prog{display:flex;align-items:center;gap:10px}
+.prog .meter{flex:1;margin:0;max-width:150px}
+.prog .meter i{background:var(--ok)}
+.prog b{font-variant-numeric:tabular-nums;font-weight:600;min-width:38px}
+.ppl a{color:inherit;text-decoration:none;font-variant-numeric:tabular-nums}
+.ppl a:hover{color:var(--accent);text-decoration:underline}
+.sub{color:var(--muted);font-size:13px}
+.empty{padding:38px 20px;text-align:center;color:var(--muted);border-top:1px solid var(--line)}
+.empty .ic{margin:0 auto 10px;width:46px;height:46px;border-radius:14px;background:var(--idle-bg)}
+.empty .actions{justify-content:center;margin-top:14px}
+
+/* Monthly timesheet */
+.scroll{overflow:auto;border-top:1px solid var(--line)}
+.sheet{width:100%;border-collapse:collapse;white-space:nowrap}
+.sheet th,.sheet td{padding:7px 3px;text-align:center;font-variant-numeric:tabular-nums;min-width:32px;border-bottom:1px solid var(--line)}
+.sheet th{font-size:11.5px;font-weight:600;color:var(--muted);background:var(--soft);line-height:1.3}
+.sheet th:first-child,.sheet td:first-child{text-align:left;padding:7px 14px 7px 20px;position:sticky;left:0;z-index:1;background:#fff;box-shadow:1px 0 0 var(--line)}
+.sheet th:first-child{background:var(--soft)}
+.sheet td:first-child{font-weight:600}
+.sheet .we{background:#f4f6fa}
+.sheet .now{background:#e8f2f8}
+.sheet th.now{color:var(--accent)}
+.sheet .sum{font-weight:700;padding-left:10px;padding-right:10px}
+.sheet .sum.first{box-shadow:-1px 0 0 var(--line)}
+.sheet tr:last-child td{border-bottom:0}
+.c{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:7px;font-weight:700;font-size:12px}
+.c.ok{background:var(--ok-bg);color:var(--ok)}
+.c.warn{background:var(--warn-bg);color:var(--warn)}
+.c.bad{background:var(--bad-bg);color:var(--bad)}
+.c.info{background:var(--info-bg);color:var(--info)}
+.legend{display:flex;gap:8px 18px;flex-wrap:wrap;padding:13px 20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.foot{margin:14px 2px 0;color:var(--muted);font-size:13px}
+
+/* Dialog and toast */
+dialog{border:0;border-radius:18px;padding:0;width:min(440px,calc(100% - 24px));color:var(--ink);box-shadow:0 30px 80px -20px rgba(14,40,58,.55)}
+dialog::backdrop{background:rgba(14,40,58,.5)}
+dialog form{padding:22px}
+dialog h2{margin:0 0 16px;font-size:19px;font-weight:700}
+dialog label{display:grid;gap:6px;margin-bottom:13px;font-size:13px;font-weight:600}
+dialog label input,dialog label select{height:42px;font-weight:400;font-size:15px}
+dialog p{margin:0 0 13px;color:var(--muted);font-size:13.5px}
+dialog .actions{justify-content:flex-end;margin-top:20px}
+.grow{flex:1}
+#toast{position:fixed;left:50%;bottom:26px;z-index:60;transform:translate(-50%,16px);opacity:0;pointer-events:none;max-width:calc(100% - 28px);padding:10px 16px;border-radius:12px;background:var(--navy);color:#fff;font-weight:600;font-size:14px;box-shadow:var(--shadow);transition:opacity .18s,transform .18s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* QR code dialog, and the page a member sees after scanning it */
+.qrbox{display:grid;place-items:center;min-height:240px;padding:8px;margin-bottom:12px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--muted);text-align:center}
+.qrbox svg{width:min(100%,340px);height:auto}
+body.checkin .stats,body.checkin .tabs,body.checkin .notice,body.checkin #panel,body.checkin .foot,body.checkin .daypick,body.checkin #syncchip{display:none!important}
+body.checkin main{padding-bottom:40px}
+#checkin{max-width:520px;margin:-46px auto 0;padding:22px}
+#checkin h2{margin:0 0 6px;font-size:20px;font-weight:700}
+#checkin p{margin:0 0 14px;color:var(--muted)}
+#checkin label{display:grid;gap:6px;margin-bottom:13px;font-size:13px;font-weight:600}
+#checkin label input{height:46px;font-size:16px;font-weight:400}
+#checkin form .btn{margin-top:6px}
+.me{display:flex;align-items:center;gap:13px;margin-bottom:16px}
+.me .av{width:52px;height:52px;font-size:17px}
+.me strong{display:block;font-size:18px;font-weight:700}
+.me small{display:block;color:var(--muted);font-size:13.5px}
+.times{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.times div{padding:10px 13px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
+.times span{display:block;color:var(--muted);font-size:12.5px}
+.times b{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.btn.big{width:100%;height:58px;border-radius:14px;font-size:18px}
+.linkbtn{display:block;margin:12px auto 0;padding:8px;border:0;background:none;color:var(--muted);text-decoration:underline}
+
+/* Medium widths: the six-column attendance row no longer fits, so it folds into two lines. */
+@media(max-width:1100px){
+.att .lhead{display:none}
+.att .row{grid-template-columns:minmax(180px,1.3fr) minmax(150px,1fr) 140px 140px;grid-template-areas:"who st tin tout" "who hrs act act"}
+.att .who{grid-area:who}.att .st{grid-area:st}.att .hrs{grid-area:hrs;color:var(--muted)}.att .tin{grid-area:tin}.att .tout{grid-area:tout}.att .act{grid-area:act}
+.tf{display:grid;gap:3px}
+.tf span{display:block;font-size:12px;color:var(--muted)}
+.hrs span{display:inline;font-weight:400;margin-right:5px}
+}
+@media(max-width:820px){
+.wrap{padding:0 14px}
+.bar{height:60px}
+.brand small{display:none}
+.top{padding-bottom:60px}
+.stats{grid-template-columns:1fr 1fr;gap:10px}
+.stat{padding:13px 14px}
+.stat strong{font-size:24px}
+main{padding-bottom:98px}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:0;border-radius:0;padding:6px 6px calc(6px + env(safe-area-inset-bottom));background:rgba(255,255,255,.95);backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+.tabs button{flex-direction:column;justify-content:center;gap:3px;height:52px;padding:0;font-size:11.5px}
+.tabs button[aria-selected=true]{background:transparent;box-shadow:none;color:var(--accent)}
+.tabs svg{width:22px;height:22px}
+.panel{margin-top:16px}
+.toolbar{padding:15px 16px}
+.filters{padding:0 16px 12px}
+.search{max-width:none;flex-basis:100%}
+.lhead{display:none}
+.row{padding:14px 16px;gap:10px 12px}
+/* Phone: each member is a card instead of a wide row that would need sideways scrolling. */
+.att .row{grid-template-columns:1fr 1fr;grid-template-areas:"who who" "st hrs" "tin tout" "act act"}
+.att .hrs{justify-self:end}
+.att .act>*{flex:1}
+.tsk .row{grid-template-columns:1fr auto;grid-template-areas:"who st" "prog act"}
+.tsk .who{grid-area:who}.tsk .st{grid-area:st;justify-self:end}.tsk .prog{grid-area:prog}.tsk .act{grid-area:act}
+.ppl .row{grid-template-columns:1fr auto;grid-template-areas:"who act" "phone stats"}
+.ppl .who{grid-area:who}.ppl .act{grid-area:act}.ppl .phone{grid-area:phone}.ppl .stats-cell{grid-area:stats;justify-self:end;text-align:right}
+.sheet th:first-child,.sheet td:first-child{padding-left:16px;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+#toast{bottom:88px}
+dialog{margin:auto auto 0;width:100%;max-width:none;border-radius:20px 20px 0 0}
+.who strong{white-space:normal}
+}
+@media(max-width:560px){
+.hero{flex-direction:column;align-items:stretch;gap:12px}
+.daypick{grid-template-columns:auto 1fr;align-items:center;gap:10px}
+}
+/* Touch screens: finger-sized controls, and 16px text so iOS does not zoom the page when a field is focused. */
+@media(pointer:coarse){.btn,.fchip,.panel input,.panel select,dialog input,dialog select{min-height:44px}input,select{font-size:16px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+<div class="wrap bar">
+<div class="brand"><img src="logo.png" alt="Logo Trường Đại học Kinh tế - Kỹ thuật Công nghiệp" width="39" height="44"><div><b>ROBOCON KCK</b><small>Chấm công &amp; kế hoạch</small></div></div>
+<button type="button" class="syncchip" id="syncchip"><i></i>Chỉ lưu trên máy này</button>
+</div>
+<div class="wrap hero">
+<div><p id="todayLabel"></p><time id="clock" aria-label="Giờ hiện tại">--:--:--</time></div>
+<label class="daypick">Ngày đang xem<input type="date" id="day" required></label>
+</div>
+</header>
+<main class="wrap">
+<noscript><p>Trang này cần bật JavaScript để hoạt động.</p></noscript>
+<div class="stats" id="stats"></div>
+<div class="notice" id="notice" hidden><span>Máy này đang lưu dữ liệu riêng. Mở bằng <b>link quản lý</b> để dùng chung dữ liệu với cả đội.</span><button type="button" class="btn" id="noticeBtn">Kết nối</button></div>
+<div class="tabs" id="tabs" role="tablist" aria-label="Mục quản lý"><button type="button" role="tab" id="tab-attendance" aria-controls="panel" data-tab="attendance" data-icon="clock">Chấm công</button><button type="button" role="tab" id="tab-sheet" aria-controls="panel" data-tab="sheet" data-icon="calendar">Bảng công</button><button type="button" role="tab" id="tab-tasks" aria-controls="panel" data-tab="tasks" data-icon="tasks">Công việc</button><button type="button" role="tab" id="tab-people" aria-controls="panel" data-tab="people" data-icon="users">Thành viên</button></div>
+<section class="panel" id="panel" role="tabpanel"></section>
+<section class="panel" id="checkin" hidden></section>
+<p class="foot" id="storage" role="status"></p>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<dialog id="modal" aria-labelledby="modal-title"><form id="editor"></form></dialog>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const zone = 'Asia/Ho_Chi_Minh';
+const dayFormat = new Intl.DateTimeFormat('sv-SE',{timeZone:zone});
+const timeFormat = new Intl.DateTimeFormat('en-GB',{timeZone:zone,hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+const longDate = new Intl.DateTimeFormat('vi-VN',{timeZone:zone,weekday:'long',day:'numeric',month:'long',year:'numeric'});
+let today = dayFormat.format(new Date());
+const STORE = 'robocon-kck-v2', OLD_STORE = 'nhip-viec-v1', SYNC_STORE = 'robocon-kck-sync', ME_STORE = 'robocon-kck-me';
+const keyRe = /^[A-Za-z0-9_-]{24,64}$/;
+// Marks set by hand, without clock times. '' means the day is judged from the recorded times.
+const marks = {'':'Theo giờ',present:'Có mặt',late:'Đi muộn',leave:'Nghỉ phép',absent:'Vắng mặt'};
+const codeClass = {X:'ok',M:'warn',S:'warn','?':'warn',P:'info',V:'bad'};
+const weekdays = ['CN','T2','T3','T4','T5','T6','T7'];
+const escapes = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/, dateRe = /^\d{4}-\d{2}-\d{2}$/;
+const paths = {
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  calendar:'<rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/>',
+  tasks:'<path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.2 1.2L7 4.9M3.5 12l1.2 1.2L7 10.9M3.5 18l1.2 1.2L7 16.9"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5M16 4.7a3.5 3.5 0 010 6.6M18.5 14.9c1.6.8 2.7 2.4 3 5.1"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  download:'<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19.5h14"/>',
+  search:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
+  sliders:'<path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.5"/><circle cx="8" cy="17" r="2.5"/>',
+  enter:'<path d="M10 16l4-4-4-4M14 12H4M14 4h4a2 2 0 012 2v12a2 2 0 01-2 2h-4"/>',
+  leave:'<path d="M14 16l4-4-4-4M18 12H8M10 4H6a2 2 0 00-2 2v12a2 2 0 002 2h4"/>',
+  edit:'<path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  alert:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.4v.1"/>',
+  qr:'<rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h3v3h-3zM20.5 14v.1M14 20.5h.1M17.5 20.5h3v-3"/>',
+  prev:'<path d="M15 5l-7 7 7 7"/>',
+  next:'<path d="M9 5l7 7-7 7"/>'
+};
+const tabs = [...document.querySelectorAll('[data-tab]')];
+const isRecord = value => !!value && typeof value==='object' && !Array.isArray(value);
+const entries = value => value && typeof value==='object' ? Object.entries(value).filter(([,v])=>v!=null) : [];
+// Characters a database key cannot contain.
+const badKey = /[.$#[\]\/]/g;
+const validKey = key => key!=='' && !/[.$#[\]\/]/.test(key);
+function icon(name){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths[name]+'</svg>';}
+function html(value){return String(value).replace(/[&<>"']/g,c=>escapes[c]);}
+function date(value){return value.split('-').reverse().join('/');}
+function fold(text){return text.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'d').toLowerCase();}
+function toast(text){
+  const t=$('toast');
+  t.textContent=text;t.classList.add('show');
+  clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// ---- Data ----
+// Everything lives in one tree whose leaves are people/<id>, tasks/<id>, attendance/<day>/<id>, settings, meta,
+// qr/<day> (that day's check-in code) and scans/<day>/<id> (which QR scans were already turned into clock times).
+// The shared database stores the same tree, so a change is always "set this leaf", never "replace everything".
+function cleanRecord(value){
+  // Before clock times existed a day was stored as a bare status word.
+  const r = typeof value==='string' ? {status:value} : isRecord(value) ? value : {};
+  if(r.status==='leave' || r.status==='absent') return {status:r.status};
+  if(timeRe.test(r.in)) return timeRe.test(r.out) ? {in:r.in,out:r.out} : {in:r.in};
+  if(r.status==='present' || r.status==='late') return {status:r.status};
+  return null;
+}
+function cleanSettings(value){
+  const s = isRecord(value) ? value : {};
+  return {
+    start: timeRe.test(s.start) ? s.start : s.start==='' ? '' : '08:00',
+    end: timeRe.test(s.end) ? s.end : s.end==='' ? '' : '17:00',
+    grace: Math.min(120,Math.max(0,Math.round(Number(s.grace))||0))
+  };
+}
+// Saved or downloaded data can be damaged or incomplete; rebuild it in the exact shape the page relies on.
+function cleanState(raw){
+  const src = isRecord(raw) ? raw : {};
+  const out = {people:{},tasks:{},attendance:{},qr:{},scans:{},settings:cleanSettings(src.settings),meta:{seeded:!!(isRecord(src.meta)&&src.meta.seeded)}};
+  for(const [id,p] of entries(src.people)) if(validKey(id) && isRecord(p)) out.people[id]={name:String(p.name??''),studentId:String(p.studentId??''),cls:String(p.cls??''),phone:String(p.phone??''),order:Number(p.order)||0};
+  for(const [id,t] of entries(src.tasks)) if(validKey(id) && isRecord(t)) out.tasks[id]={title:String(t.title??''),owner:String(t.owner??''),due:dateRe.test(t.due)?t.due:today,progress:Math.min(100,Math.max(0,Math.round(Number(t.progress))||0))};
+  for(const [d,records] of entries(src.attendance)){
+    if(!dateRe.test(d)) continue;
+    for(const [id,value] of entries(records)){
+      const r = validKey(id) ? cleanRecord(value) : null;
+      if(r) (out.attendance[d]??={})[id]=r;
+    }
+  }
+  for(const [d,code] of entries(src.qr)) if(dateRe.test(d) && keyRe.test(code?.key) && [code.x,code.y,code.d].every(v=>typeof v==='string')) out.qr[d]={key:code.key,x:code.x,y:code.y,d:code.d};
+  for(const [d,seen] of entries(src.scans)){
+    if(!dateRe.test(d)) continue;
+    for(const [id,m] of entries(seen)) if(validKey(id) && Number.isFinite(m?.i) && typeof m.p==='string') (out.scans[d]??={})[id]=Number.isFinite(m.o) ? {i:m.i,o:m.o,p:m.p} : {i:m.i,p:m.p};
+  }
+  return out;
+}
+function fill(s){s.people??={};s.tasks??={};s.attendance??={};s.qr??={};s.scans??={};s.settings??=cleanSettings();s.meta??={seeded:false};}
+// The first version of the page kept people and tasks as lists.
+function fromV1(old){
+  const src = isRecord(old) ? old : {}, key = id => String(id??'').replace(badKey,'_');
+  const raw = {people:{},tasks:{},attendance:{},settings:src.settings,meta:{seeded:!!src.sheetRosterDetailsImported}};
+  (Array.isArray(src.people)?src.people:[]).forEach((p,i)=>{if(isRecord(p) && key(p.id)) raw.people[key(p.id)]={...p,order:i};});
+  (Array.isArray(src.tasks)?src.tasks:[]).forEach(t=>{if(isRecord(t) && key(t.id)) raw.tasks[key(t.id)]={...t,owner:key(t.owner)};});
+  for(const [d,records] of entries(src.attendance)) for(const [id,value] of entries(records)) if(key(id)) (raw.attendance[d]??={})[key(id)]=value;
+  return cleanState(raw);
+}
+let state = cleanState();
+let outbox = {};   // leaf path -> value still to be sent to the shared database
+let db;            // what the views read: people and tasks as sorted lists
+let storageOk = true;
+function derive(){
+  db = {
+    people: Object.entries(state.people).map(([id,p])=>({id,...p})).sort((a,b)=>a.order-b.order || a.name.localeCompare(b.name,'vi')),
+    tasks: Object.entries(state.tasks).map(([id,t])=>({id,...t})),
+    attendance: state.attendance,
+    settings: state.settings
+  };
+}
+function persist(){
+  try {localStorage.setItem(STORE,JSON.stringify({state,outbox}));storageOk=true;}
+  catch {storageOk=false;}
+  updateFoot();
+}
+// Set or delete (null) one leaf. Deleting also removes containers left empty, as the database does.
+function setPath(tree,path,value){
+  const keys=path.split('/').filter(Boolean), last=keys.pop(), trail=[];
+  let node=tree;
+  for(const k of keys){
+    if(!isRecord(node[k])){if(value==null) return;node[k]={};}
+    trail.push([node,k]);node=node[k];
+  }
+  if(value!=null){node[last]=value;return;}
+  delete node[last];
+  for(const [parent,k] of trail.reverse()){if(Object.keys(parent[k]).length) break;delete parent[k];}
+}
+function leaves(s){
+  const out={settings:s.settings,meta:s.meta};
+  for(const [id,p] of Object.entries(s.people)) out['people/'+id]=p;
+  for(const [id,t] of Object.entries(s.tasks)) out['tasks/'+id]=t;
+  for(const [d,records] of Object.entries(s.attendance)) for(const [id,r] of Object.entries(records)) out['attendance/'+d+'/'+id]=r;
+  for(const [d,code] of Object.entries(s.qr)) out['qr/'+d]=code;
+  for(const [d,seen] of Object.entries(s.scans)) for(const [id,m] of Object.entries(seen)) out['scans/'+d+'/'+id]=m;
+  return out;
+}
+// Every change goes through here: apply it locally at once, then queue it for the shared database.
+function commit(updates){
+  const list=Object.entries(updates);
+  if(!list.length) return;
+  for(const [path,value] of list){setPath(state,path,value);if(sync) outbox[path]=value??null;}
+  fill(state);derive();persist();updateChip();flush();
+}
+const importedRoster = /*ROSTER*/[];
+function seedUpdates(){
+  if(state.meta.seeded) return {};
+  const updates={meta:{seeded:true}};
+  importedRoster.forEach((m,i)=>{
+    const id='sheet-roster-'+i;
+    if(!state.people[id]) updates['people/'+id]={name:String(m.name),studentId:String(m.studentId??''),cls:String(m.cls??''),phone:String(m.phone??''),order:i};
+  });
+  return updates;
+}
+
+// ---- Shared database ----
+// Managers open the page through a link that carries "<database host>/<secret key>" after "#sync=".
+// Changes are sent as small patches; a live stream brings back what other managers change.
+let sync = null;      // {url,key} once this device is linked
+let remote = null;    // the server's copy of the tree; null until the first snapshot
+let stream = null, live = false, online = false, refused = false, flushing = false, retryTimer = 0, flushTimer = 0;
+const teamUrl = () => sync.url+'/teams/'+sync.key;
+function randomKey(){return btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24)))).replace(/\+/g,'-').replace(/\//g,'_');}
+function parseTarget(text){
+  const m=String(text).trim().replace(/^https?:\/\//,'').match(/^(.+)\/([A-Za-z0-9_-]{24,64})$/);
+  if(!m) return null;
+  // Only a Firebase database, or a local one while developing, is accepted as a place to send data.
+  const local=/^(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(m[1]);
+  let u;
+  try {u=new URL((local?'http://':'https://')+m[1]);} catch {return null;}
+  if(!local && !/\.(firebasedatabase\.app|firebaseio\.com)$/.test(u.hostname)) return null;
+  return {url:u.origin+(local?u.pathname.replace(/\/$/,''):''),key:m[2]};
+}
+function targetCode(target){return target.url.replace(/^https?:\/\//,'')+'/'+target.key;}
+function fromHash(name){
+  const m=location.hash.match(new RegExp('[#&]'+name+'=([^&]+)'));
+  try {return m ? parseTarget(decodeURIComponent(m[1])) : null;} catch {return null;}
+}
+// Accepts a manager link, or a bare database address (which starts a new shared space with a fresh key).
+function parseSync(text){
+  text=String(text).trim();
+  const m=text.match(/[#&]sync=([^&\s]+)/);
+  try {return parseTarget(m ? decodeURIComponent(m[1]) : text.replace(/\/+$/,'')+'/'+randomKey());} catch {return null;}
+}
+function managerLink(){return location.origin+location.pathname+'#sync='+targetCode(sync);}
+function hasLocalWork(){return !!(Object.keys(state.attendance).length || Object.keys(state.tasks).length);}
+function startSync(config){
+  sync=config;remote=null;live=false;online=false;refused=false;
+  try {localStorage.setItem(SYNC_STORE,JSON.stringify(sync));} catch {}
+  history.replaceState(null,'','#sync='+targetCode(sync));
+  openStream();updateChip();updateFoot();
+}
+function stopSync(){
+  stream?.close();stream=null;clearTimeout(retryTimer);clearTimeout(flushTimer);
+  sync=null;remote=null;live=false;outbox={};
+  watchDaily();
+  try {localStorage.removeItem(SYNC_STORE);} catch {}
+  history.replaceState(null,'',location.pathname+location.search);
+  persist();updateChip();
+}
+// A stream sends "put" (replace what is at a path) and "patch" (replace several keys under a path).
+function listen(url,onMessage){
+  const es=new EventSource(url);
+  for(const [type,patch] of [['put',false],['patch',true]]) es.addEventListener(type,e=>{
+    let message;
+    try {message=JSON.parse(e.data);} catch {return;}
+    if(isRecord(message)) onMessage(message,patch);
+  });
+  return es;
+}
+function applyEvent(tree,message,patch){
+  const at=String(message.path??'/').split('/').filter(Boolean).join('/'), data=message.data;
+  tree??={};
+  if(patch) for(const [k,v] of Object.entries(isRecord(data)?data:{})) setPath(tree,(at?at+'/':'')+k,v);
+  else if(at) setPath(tree,at,data);
+  else tree=isRecord(data)?data:{};
+  return tree;
+}
+function openStream(){
+  stream?.close();clearTimeout(retryTimer);
+  const es=stream=listen(teamUrl()+'.json',(message,patch)=>{if(stream===es) applyRemote(message,patch);});
+  es.onopen=()=>{if(stream===es){online=true;refused=false;updateChip();flush();}};
+  es.onerror=()=>{
+    if(stream!==es) return;
+    online=false;
+    // The browser reconnects a dropped stream by itself. A refused one (wrong link, access rules) stays closed, so retry slowly.
+    if(es.readyState===EventSource.CLOSED){refused=true;retryTimer=setTimeout(openStream,20000);}
+    updateChip();
+  };
+}
+function applyRemote(message,patch){
+  remote=applyEvent(remote,message,patch);
+  const first=!live;
+  live=true;online=true;refused=false;
+  if(first && !Object.keys(remote).length){
+    // Nothing shared yet: this device supplies the starting data.
+    commit({...leaves(state),...seedUpdates()});
+  }else{
+    if(first && !sync.joined && hasLocalWork()) try {localStorage.setItem(STORE+'-backup',JSON.stringify(state));} catch {}
+    // The server's copy is the truth, plus this device's changes that have not been sent yet.
+    state=cleanState(remote);
+    for(const [p,v] of Object.entries(outbox)) setPath(state,p,v);
+    fill(state);derive();persist();
+    if(first) commit(seedUpdates());
+  }
+  if(first && !sync.joined){sync.joined=true;try {localStorage.setItem(SYNC_STORE,JSON.stringify(sync));} catch {}}
+  watchDaily();
+  if(first) catchUpScans();
+  refresh();updateChip();flush();
+}
+async function flush(){
+  if(!sync || !live || flushing || !Object.keys(outbox).length) return;
+  flushing=true;
+  const target=teamUrl(), sent={...outbox};
+  let ok=false;
+  try {ok=(await fetch(target+'.json',{method:'PATCH',body:JSON.stringify(sent)})).ok;} catch {}
+  flushing=false;
+  if(!sync || teamUrl()!==target) return;
+  if(ok){
+    // Drop only what was sent unchanged; a leaf edited again meanwhile stays queued.
+    for(const [p,v] of Object.entries(sent)) if(outbox[p]===v) delete outbox[p];
+    online=true;persist();
+  }else{
+    online=false;clearTimeout(flushTimer);flushTimer=setTimeout(flush,8000);
+  }
+  updateChip();
+  if(ok) flush();
+}
+function updateChip(){
+  const pending=Object.keys(outbox).length;
+  let cls='', text='Chỉ lưu trên máy này';
+  if(sync){
+    if(!live){cls=refused?'warn':'wait';text=refused?'Không kết nối được':'Đang kết nối…';}
+    else if(!online){cls='warn';text='Mất kết nối'+(pending?' · '+pending+' thay đổi chờ gửi':'');}
+    else if(pending){cls='wait';text='Đang đồng bộ…';}
+    else{cls='ok';text='Đã đồng bộ';}
+  }
+  $('syncchip').className='syncchip '+cls;
+  $('syncchip').innerHTML='<i></i>'+text;
+  $('notice').hidden=!!sync;
+}
+function updateFoot(){
+  $('storage').textContent=!storageOk ? 'Trình duyệt không lưu được thay đổi. Hãy xuất CSV để giữ lại dữ liệu.'
+    : sync ? 'Dữ liệu dùng chung: thay đổi tự đồng bộ giữa các máy quản lý.' : 'Dữ liệu chỉ lưu trong trình duyệt này.';
+}
+
+// ---- QR check-in ----
+// Each day gets its own space in the database, named by a fresh secret key that is shown as a QR code.
+// A member who scans it types name, student ID, class and phone, and stamps "in" or "out" with the server's clock.
+// Those details are encrypted for the managers (the day's private key lives in the managers' tree), so someone who
+// only has the QR code can see that stamps exist but not who made them. Yesterday's code leads nowhere.
+let daily = null, dailyKey = '', dailyDate = '', dailyStream = null, qrLib = null, importing = Promise.resolve();
+const curve = {name:'ECDH',namedCurve:'P-256'};
+const toB64 = bytes => btoa(String.fromCharCode(...bytes));
+const fromB64 = text => Uint8Array.from(atob(text),c=>c.charCodeAt(0));
+function hhmm(ts){return timeFormat.format(new Date(ts)).slice(0,5);}
+// Encrypt for the holder of the day's private key: a throwaway key pair, then AES-GCM with the shared secret.
+async function seal(pub,fields){
+  const theirs=await crypto.subtle.importKey('raw',fromB64(pub),curve,false,[]);
+  const mine=await crypto.subtle.generateKey(curve,true,['deriveKey']);
+  const aes=await crypto.subtle.deriveKey({name:'ECDH',public:theirs},mine.privateKey,{name:'AES-GCM',length:256},false,['encrypt']);
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const head=new Uint8Array(await crypto.subtle.exportKey('raw',mine.publicKey));
+  const body=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},aes,new TextEncoder().encode(JSON.stringify(fields))));
+  return toB64([...head,...iv,...body]);
+}
+async function unseal(code,sealed){
+  const bytes=fromB64(sealed);
+  const mine=await crypto.subtle.importKey('jwk',{kty:'EC',crv:'P-256',x:code.x,y:code.y,d:code.d},curve,false,['deriveKey']);
+  const theirs=await crypto.subtle.importKey('raw',bytes.slice(0,65),curve,false,[]);
+  const aes=await crypto.subtle.deriveKey({name:'ECDH',public:theirs},mine,{name:'AES-GCM',length:256},false,['decrypt']);
+  return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes.slice(65,77)},aes,bytes.slice(77))));
+}
+// A member's stamp is filed under a digest of the day key and student ID: stable for that person, meaningless to others.
+async function entryKey(dayKey,studentId){
+  const bytes=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(dayKey+'|'+studentId.toUpperCase())));
+  return [...bytes.slice(0,16)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function tidy(value,max=100){return String(value??'').trim().replace(/\s+/g,' ').slice(0,max);}
+// Find the member a scanned form belongs to (by student ID), or add them. Returns the member id.
+function enroll(who,updates){
+  const name=tidy(who?.name), studentId=tidy(who?.studentId,40).replace(/\s/g,''), cls=tidy(who?.cls,40), phone=tidy(who?.phone,40);
+  if(!name || !studentId) return '';
+  const all=Object.entries(state.people);
+  const found=all.find(([,p])=>p.studentId.replace(/\s/g,'').toUpperCase()===studentId.toUpperCase()) ?? all.find(([,p])=>!p.studentId && fold(p.name)===fold(name));
+  if(!found){
+    const id='m'+studentId.replace(/[^A-Za-z0-9_-]/g,'_');
+    updates['people/'+id]={name,studentId,cls,phone,order:all.reduce((max,[,p])=>Math.max(max,p.order),-1)+1};
+    return id;
+  }
+  // The managers' list wins; a scan only fills in what is still missing.
+  const [id,p]=found, merged={...p,studentId:p.studentId||studentId,cls:p.cls||cls,phone:p.phone||phone};
+  if(merged.studentId!==p.studentId || merged.cls!==p.cls || merged.phone!==p.phone) updates['people/'+id]=merged;
+  return id;
+}
+// Turn stamps into clock times. Runs one batch at a time because decrypting is asynchronous.
+function importScans(d,data){importing=importing.then(()=>importDay(d,data)).catch(()=>{});}
+async function importDay(d,data){
+  let changed=false;
+  for(const [entry,stamp] of entries(data?.in)){
+    const ts=stamp?.t, outTs=data.out?.[entry];
+    if(!validKey(entry) || !Number.isFinite(ts) || dayFormat.format(new Date(ts))!==d) continue;
+    let seen=state.scans[d]?.[entry]??{};
+    if(seen.i===ts && (!Number.isFinite(outTs) || seen.o===outTs)) continue;
+    let who=null;
+    if(seen.i!==ts){
+      const code=state.qr[d];
+      try {who=await unseal(code,stamp.d);} catch {continue;}
+      if(!sync) return;
+      seen=state.scans[d]?.[entry]??{};   // another manager's page may have handled it while this one was decrypting
+    }
+    // Each stamp is applied once, so a time a manager corrected afterwards is not overwritten again.
+    const updates={}, mark={...seen};
+    if(seen.i!==ts){
+      const id=enroll(who,updates);
+      if(!id) continue;
+      mark.i=ts;mark.p=id;
+    }
+    const rec=state.attendance[d]?.[mark.p];
+    let next=rec;
+    if(seen.i!==ts && !rec?.in) next={in:hhmm(ts)};
+    if(Number.isFinite(outTs) && seen.o!==outTs){mark.o=outTs;if(next?.in) next={in:next.in,out:hhmm(outTs)};}
+    if(mark.i===seen.i && mark.o===seen.o) continue;
+    updates['scans/'+d+'/'+entry]=mark;
+    if(next!==rec) updates['attendance/'+d+'/'+mark.p]=next;
+    commit(updates);changed=true;
+  }
+  if(changed) refresh();
+}
+function watchDaily(){
+  const key=sync && live ? state.qr[today]?.key??'' : '';
+  if(key===dailyKey) return;
+  dailyStream?.close();
+  dailyStream=null;daily=null;dailyKey=key;dailyDate=today;
+  if(!key) return;
+  const es=dailyStream=listen(sync.url+'/daily/'+key+'.json',(message,patch)=>{
+    if(dailyStream!==es) return;
+    daily=applyEvent(daily,message,patch);
+    importScans(dailyDate,daily);
+    updateQrNote();
+  });
+}
+// Stamps made on earlier days' codes while no manager had the page open.
+async function catchUpScans(){
+  const target=teamUrl();
+  for(const [d,code] of Object.entries(state.qr)){
+    if(d===today) continue;
+    let data;
+    try {const res=await fetch(sync.url+'/daily/'+code.key+'.json');data=res.ok ? await res.json() : null;} catch {}
+    if(!sync || teamUrl()!==target) return;
+    if(data) importScans(d,data);
+  }
+}
+async function ensureDaily(fresh){
+  if(state.qr[today] && !fresh) return state.qr[today].key;
+  const key=randomKey(), d=today;
+  const pair=await crypto.subtle.generateKey(curve,true,['deriveKey']);
+  const jwk=await crypto.subtle.exportKey('jwk',pair.privateKey);
+  const pub=toB64(new Uint8Array(await crypto.subtle.exportKey('raw',pair.publicKey)));
+  const res=await fetch(sync.url+'/daily/'+key+'/info.json',{method:'PUT',body:JSON.stringify({date:d,pub})});
+  if(!res.ok) throw new Error('daily');
+  // Codes and scan marks older than a week are no longer needed.
+  const updates={['qr/'+d]:{key,x:jwk.x,y:jwk.y,d:jwk.d}}, cutoff=dayFormat.format(new Date(Date.now()-7*86400000));
+  for(const old of Object.keys(state.qr)) if(old<cutoff) updates['qr/'+old]=null;
+  for(const [old,seen] of Object.entries(state.scans)) if(old<cutoff) for(const id of Object.keys(seen)) updates['scans/'+old+'/'+id]=null;
+  commit(updates);watchDaily();
+  return key;
+}
+function loadQr(){
+  return qrLib ??= new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+    s.integrity='sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1';s.crossOrigin='anonymous';
+    s.onload=()=>resolve(window.qrcode);
+    s.onerror=()=>{qrLib=null;reject(new Error('qr'));};
+    document.head.append(s);
+  });
+}
+function qrSvg(qr){
+  const n=qr.getModuleCount(), quiet=4;
+  let d='';
+  for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(qr.isDark(r,c)) d+='M'+(c+quiet)+' '+(r+quiet)+'h1v1h-1z';
+  return '<svg viewBox="0 0 '+(n+2*quiet)+' '+(n+2*quiet)+'" shape-rendering="crispEdges" role="img" aria-label="Mã QR chấm công hôm nay"><rect width="100%" height="100%" fill="#fff"/><path d="'+d+'" fill="#000"/></svg>';
+}
+function updateQrNote(){
+  if($('qrnote')) $('qrnote').textContent=Object.keys(daily?.in??{}).length+' người đã quét hôm nay';
+}
+async function drawQr(fresh){
+  try {
+    const [lib,key]=await Promise.all([loadQr(),ensureDaily(fresh)]);
+    if(!$('qrbox')) return;
+    const qr=lib(0,'M');
+    qr.addData(location.origin+location.pathname+'#qr='+targetCode({url:sync.url,key}));
+    qr.make();
+    $('qrbox').innerHTML=qrSvg(qr);
+    updateQrNote();
+  } catch {
+    if($('qrbox')) $('qrbox').textContent='Không tạo được mã QR. Kiểm tra kết nối mạng rồi thử lại.';
+  }
+}
+function openQr(){
+  if(!sync || !live){toast('Cần kết nối dữ liệu chung để dùng mã QR');openSync();return;}
+  openDialog('<h2 id="modal-title">Mã QR chấm công</h2><p>'+html(longDate.format(new Date()))+'. Thành viên quét bằng camera điện thoại, nhập họ tên, mã sinh viên, lớp, số điện thoại rồi bấm Vào ca hoặc Ra ca. Mã chỉ dùng được trong hôm nay.</p><div class="qrbox" id="qrbox">Đang tạo mã…</div><p id="qrnote"></p><div class="actions"><button type="button" class="btn" id="newqr">Tạo mã mới</button><span class="grow"></span><button type="button" class="btn primary" id="cancel">Đóng</button></div>');
+  $('newqr').onclick=()=>{
+    if(!confirm('Tạo mã mới? Mã QR đang dùng sẽ hết hiệu lực. Giờ của những người đã quét vẫn được giữ.')) return;
+    $('qrbox').textContent='Đang tạo mã…';
+    drawQr(true);
+  };
+  drawQr(false);
+}
+// The page a member sees after scanning the code: fill in who you are, then stamp in or out.
+function startCheckin(target){
+  checkin=true;
+  document.body.classList.add('checkin');
+  const box=$('checkin'), base=target.url+'/daily/'+target.key;
+  let info, failed=false, busy=false, editing=false, me=null, entry='', tin=null, tout=null;
+  box.hidden=false;
+  try {
+    const saved=JSON.parse(localStorage.getItem(ME_STORE));
+    if(saved?.name && saved.studentId && saved.cls && saved.phone) me=saved;
+  } catch {}
+  const field=(label,name,attrs)=>'<label>'+label+'<input name="'+name+'" required '+attrs+' value="'+html(me?.[name]??'')+'"></label>';
+  const draw=()=>{
+    let body;
+    if(failed) body='<h2>Không tải được dữ liệu</h2><p>Kiểm tra kết nối mạng rồi thử lại.</p><button type="button" class="btn primary big" data-do="reload">Thử lại</button>';
+    else if(info===undefined) body='<p>Đang tải…</p>';
+    else if(!info || info.date!==today || !info.pub) body='<h2>Mã QR đã hết hạn</h2><p>Mỗi ngày có một mã mới. Hãy quét mã QR của hôm nay trên màn hình của quản lý.</p>';
+    else if(!me || editing) body='<h2>Chấm công hôm nay</h2><p>Nhập đầy đủ thông tin của bạn. Máy này sẽ nhớ lại cho những lần sau.</p><form id="who">'+
+      field('Họ và tên','name','maxlength="80" autocomplete="name" placeholder="Nguyễn Văn A"')+
+      field('Mã sinh viên','studentId','maxlength="20" inputmode="numeric" pattern="[0-9A-Za-z]{5,20}" title="Mã sinh viên gồm 5 đến 20 chữ số hoặc chữ cái" autocomplete="off"')+
+      field('Lớp','cls','maxlength="30" autocomplete="off" placeholder="Ví dụ: 66CK1"')+
+      field('Số điện thoại','phone','type="tel" maxlength="15" inputmode="tel" pattern="(0|\\+84)[0-9 .]{8,12}" title="Số điện thoại bắt đầu bằng 0 hoặc +84" autocomplete="tel"')+
+      '<button type="submit" class="btn primary big">Tiếp tục</button></form>';
+    else body='<div class="me">'+avatar({id:me.studentId,name:me.name})+'<div><strong>'+html(me.name)+'</strong><small>'+html(me.studentId+' · '+me.cls)+'</small></div></div>'+
+      '<p>'+(tout?'Đã ra ca lúc '+hhmm(tout):tin?'Đang làm việc, vào ca lúc '+hhmm(tin):'Chưa chấm công hôm nay')+'</p>'+
+      (tin ? '<div class="times"><div><span>Giờ vào</span><b>'+hhmm(tin)+'</b></div><div><span>Giờ ra</span><b>'+(tout?hhmm(tout):'—')+'</b></div></div>' : '')+
+      '<button type="button" class="btn big'+(tout?'':' primary')+'" data-do="'+(tin?'out':'in')+'"'+(busy?' disabled':'')+'>'+icon(tin?'leave':'enter')+'<span>'+(busy?'Đang ghi…':tout?'Cập nhật giờ ra':tin?'Ra ca':'Vào ca')+'</span></button>'+
+      '<button type="button" class="linkbtn" data-do="edit">Sửa thông tin của tôi</button>';
+    box.innerHTML=body;
+  };
+  const read=async url=>{
+    const res=await fetch(url);
+    if(!res.ok) throw new Error(res.status);
+    return res.json();
+  };
+  const load=async()=>{
+    try {
+      info=await read(base+'/info.json');
+      if(info && me){
+        entry=await entryKey(target.key,me.studentId);
+        [tin,tout]=await Promise.all([read(base+'/in/'+entry+'/t.json'),read(base+'/out/'+entry+'.json')]);
+      }
+      failed=false;
+    } catch {failed=true;}
+    draw();
+  };
+  const stamp=async kind=>{
+    busy=true;draw();
+    let ok=false;
+    try {
+      const body=kind==='in' ? {t:{'.sv':'timestamp'},d:await seal(info.pub,me)} : {'.sv':'timestamp'};
+      ok=(await fetch(base+'/'+kind+'/'+entry+'.json',{method:'PUT',body:JSON.stringify(body)})).ok;
+    } catch {}
+    busy=false;
+    await load();
+    const at=kind==='in' ? tin : tout;
+    toast(ok && at ? (kind==='in'?'Đã vào ca lúc ':'Đã ra ca lúc ')+hhmm(at) : at ? 'Giờ đã được ghi trước đó' : 'Chưa ghi được, hãy thử lại');
+  };
+  box.addEventListener('submit',e=>{
+    e.preventDefault();
+    const values=Object.fromEntries(new FormData(e.target));
+    me={name:tidy(values.name,80),studentId:tidy(values.studentId,20).replace(/\s/g,''),cls:tidy(values.cls,30),phone:tidy(values.phone,15)};
+    try {localStorage.setItem(ME_STORE,JSON.stringify(me));} catch {}
+    editing=false;tin=tout=null;
+    load();
+  });
+  box.addEventListener('click',e=>{
+    const b=e.target.closest('[data-do]');
+    if(!b || busy) return;
+    const action=b.dataset.do;
+    if(action==='edit'){editing=true;draw();}
+    else if(action==='reload') load();
+    else stamp(action);
+  });
+  redraw=draw;
+  draw();load();
+}
+
+// ---- Timekeeping ----
+// A day's record for one member is {in:'HH:MM', out:'HH:MM'} from the clock, or {status} when marked by hand.
+function nowTime(){return timeFormat.format(new Date()).slice(0,5);}
+function mins(time){return Number(time.slice(0,2))*60+Number(time.slice(3));}
+function duration(m){return m ? Math.floor(m/60)+'g '+String(m%60).padStart(2,'0')+'p' : '—';}
+function clockTotal(m){return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
+function person(id){return state.people[id]?.name ?? 'Chưa phân công';}
+function day(){return $('day').value || today;}
+function overdue(t){return t.progress<100 && t.due<today;}
+function avg(tasks){return tasks.length ? Math.round(tasks.reduce((sum,t)=>sum+t.progress,0)/tasks.length)+'%' : '—';}
+// Minutes between clocking in and out. An out time earlier than the in time means the session ran past midnight.
+function worked(r){
+  if(!r?.in || !r.out) return 0;
+  const m=mins(r.out)-mins(r.in);
+  return m<0 ? m+1440 : m;
+}
+function lateBy(r){
+  const {start,grace}=db.settings;
+  if(!r?.in || !start) return 0;
+  const m=mins(r.in)-mins(start);
+  return m>grace ? m : 0;
+}
+function leftEarly(r){
+  const {start,end}=db.settings;
+  if(!r?.in || !r.out || !end || mins(r.out)<mins(r.in)) return false;
+  if(start && mins(end)<=mins(start)) return false;
+  return mins(r.out)<mins(end);
+}
+// What one member's day amounts to: timesheet letter, label, colour, filter group, and whether it counts as a worked day.
+function judge(r,d){
+  if(!r) return {code:'',label:'Chưa chấm công',cls:'idle',kind:'idle'};
+  if(r.status==='leave') return {code:'P',label:'Nghỉ phép',cls:'info',kind:'off'};
+  if(r.status==='absent') return {code:'V',label:'Vắng mặt',cls:'bad',kind:'off'};
+  if(!r.in) return r.status==='late' ? {code:'M',label:'Đi muộn',cls:'warn',kind:'done',work:true,late:true} : {code:'X',label:'Có mặt',cls:'ok',kind:'done',work:true};
+  const late=lateBy(r), lateText=late ? 'muộn '+(late<60 ? late+' phút' : duration(late)) : '';
+  if(!r.out) return d===today
+    ? {code:late?'M':'X',label:'Đang làm việc'+(late?' · '+lateText:''),cls:late?'warn':'ok',kind:'working',work:true,late:!!late}
+    : {code:'?',label:'Thiếu giờ ra',cls:'warn',kind:'done',work:true,late:!!late};
+  const early=leftEarly(r);
+  return {code:late?'M':early?'S':'X',label:late&&early?'Đi '+lateText+', về sớm':late?'Đi '+lateText:early?'Về sớm':'Đủ công',cls:late||early?'warn':'ok',kind:'done',work:true,late:!!late};
+}
+function monthDays(ym){
+  const [y,m]=ym.split('-').map(Number);
+  return Array.from({length:new Date(y,m,0).getDate()},(_,i)=>ym+'-'+String(i+1).padStart(2,'0'));
+}
+function addMonth(ym,n){
+  const [y,m]=ym.split('-').map(Number), total=y*12+m-1+n;
+  return Math.floor(total/12)+'-'+String(total%12+1).padStart(2,'0');
+}
+function weekday(d){const [y,m,dd]=d.split('-').map(Number);return new Date(y,m-1,dd).getDay();}
+function tally(id,days){
+  const t={codes:[],work:0,late:0,leave:0,absent:0,minutes:0};
+  for(const d of days){
+    const r=db.attendance[d]?.[id], s=judge(r,d);
+    t.codes.push(s.code);
+    if(s.work) t.work++;
+    if(s.late) t.late++;
+    if(s.code==='P') t.leave++;
+    if(s.code==='V') t.absent++;
+    t.minutes+=worked(r);
+  }
+  return t;
+}
+
+// ---- Views ----
+let checkin = false;       // true when the page was opened from a QR code and shows the member check-in instead
+let redraw = () => {};     // redraws whichever of the two the page is showing
+let tab = 'attendance';
+let taskFilter = 'all', attFilter = 'all', query = '';
+let month = today.slice(0,7);
+let rosterShown = '';   // who the attendance list was drawn for; lets remote updates patch rows instead of redrawing
+function btn(label,action,{id='',cls='',ic='',title=''}={}){
+  return '<button type="button" class="btn'+(cls?' '+cls:'')+'" data-action="'+action+'" data-id="'+html(id)+'"'+(title?' title="'+title+'" aria-label="'+title+'"':'')+'>'+(ic?icon(ic):'')+(label?'<span>'+label+'</span>':'')+'</button>';
+}
+function chip(s){return '<span class="chip '+s.cls+'"><i></i>'+s.label+'</span>';}
+function initials(name){
+  const words=name.trim().split(/\s+/);
+  return ((words.length>1 ? words[words.length-2][0] : '')+(words[words.length-1][0]??'?')).toUpperCase();
+}
+function avatar(p){
+  let h=0;
+  for(const c of p.id) h=(h*31+c.charCodeAt(0))%360;
+  return '<span class="av" style="--h:'+h+'" aria-hidden="true">'+html(initials(p.name))+'</span>';
+}
+function who(p,sub){return '<div class="who">'+avatar(p)+'<div><strong>'+html(p.name)+'</strong>'+(sub?'<small>'+html(sub)+'</small>':'')+'</div></div>';}
+function fchips(group,current,options){
+  return options.map(([value,label,count])=>'<button type="button" class="fchip" data-filter="'+group+'" data-value="'+value+'" aria-pressed="'+(current===value)+'">'+label+' <b>'+count+'</b></button>').join('');
+}
+function empty(ic,text,actions=''){return '<div class="empty"><div class="ic">'+icon(ic)+'</div>'+text+(actions?'<div class="actions">'+actions+'</div>':'')+'</div>';}
+function rosterKey(){return db.people.map(p=>p.id+'|'+p.name+'|'+p.studentId+'|'+p.cls).join('\n');}
+function idLine(p){return [p.studentId,p.cls].filter(Boolean).join(' · ');}
+function attCounts(){
+  const d=day(), records=db.attendance[d]??{}, n={all:db.people.length,idle:0,working:0,done:0,off:0};
+  for(const p of db.people) n[judge(records[p.id],d).kind]++;
+  return n;
+}
+function attChips(){
+  const n=attCounts();
+  return fchips('att',attFilter,[['all','Tất cả',n.all],['idle','Chưa chấm',n.idle],['working','Đang làm',n.working],['done','Đã xong',n.done],['off','Nghỉ, vắng',n.off]]);
+}
+function clockRow(p){
+  const name=html(p.name);
+  return '<div class="row" role="listitem" data-person="'+html(p.id)+'">'+who(p,idLine(p))+
+    '<div class="st" data-cell="state"></div>'+
+    '<label class="tf tin"><span>Giờ vào</span><input type="time" data-field="in" aria-label="Giờ vào '+name+'"></label>'+
+    '<label class="tf tout"><span>Giờ ra</span><input type="time" data-field="out" aria-label="Giờ ra '+name+'"></label>'+
+    '<div class="hrs"><span>Số giờ</span><b data-cell="hours"></b></div>'+
+    '<div class="act"><button type="button" class="btn" data-action="clock"></button><select data-field="status" aria-label="Đánh dấu tay '+name+'">'+Object.entries(marks).map(([id,label])=>'<option value="'+id+'">'+label+'</option>').join('')+'</select></div></div>';
+}
+// Fill one member's row from the saved record. Rows are patched in place so a field being typed in keeps focus.
+function syncRow(row){
+  const d=day(), r=db.attendance[d]?.[row.dataset.person], s=judge(r,d);
+  const off=r?.status==='leave' || r?.status==='absent';
+  const [inEl,outEl]=row.querySelectorAll('input'), mark=row.querySelector('select');
+  // Only write a value that differs: re-setting a time field mid-typing would reset the digits being entered.
+  if(inEl.value!==(r?.in??'')) inEl.value=r?.in??'';
+  if(outEl.value!==(r?.out??'')) outEl.value=r?.out??'';
+  if(mark.value!==(r?.status??'')) mark.value=r?.status??'';
+  inEl.disabled=off;outEl.disabled=!r?.in;
+  row.querySelector('[data-cell=hours]').textContent=duration(worked(r));
+  row.querySelector('[data-cell=state]').innerHTML=chip(s);
+  // The clock button only exists for today: it stamps the current time, which would be wrong for another date.
+  const next=off || d!==today ? '' : !r?.in ? 'in' : !r.out ? 'out' : '';
+  const b=row.querySelector('[data-action=clock]');
+  if(b.dataset.next!==next){
+    b.dataset.next=next;b.hidden=!next;
+    b.className='btn'+(next==='in'?' primary':'');
+    b.innerHTML=next==='out' ? icon('leave')+'<span>Ra ca</span>' : icon('enter')+'<span>Vào ca</span>';
+  }
+}
+function syncAttendance(){
+  for(const row of $('panel').querySelectorAll('[data-person]')) syncRow(row);
+  const n=attCounts();
+  for(const b of $('panel').querySelectorAll('[data-filter=att]')) b.querySelector('b').textContent=n[b.dataset.value];
+  const rest=$('panel').querySelector('[data-action="clock-rest"]');
+  if(rest) rest.disabled=!n.idle;
+}
+function renderStats(){
+  const d=day(), records=db.attendance[d]??{}, total=db.people.length;
+  let work=0, late=0, off=0, working=0;
+  for(const p of db.people){
+    const s=judge(records[p.id],d);
+    if(s.work) work++;
+    if(s.late) late++;
+    if(s.kind==='off') off++;
+    if(s.kind==='working') working++;
+  }
+  const done=db.tasks.filter(t=>t.progress===100).length, behind=db.tasks.filter(overdue).length;
+  $('stats').innerHTML=[
+    ['check','accent','Đã chấm công',work+'/'+total,late+' đi muộn · '+off+' nghỉ, vắng',total?work/total*100:0],
+    ['clock','ok','Đang làm việc',working,d===today?'Đã vào ca, chưa ra ca':'Chỉ tính cho hôm nay'],
+    ['tasks','info','Việc hoàn thành',done+'/'+db.tasks.length,'Tiến độ trung bình '+avg(db.tasks),db.tasks.length?done/db.tasks.length*100:0],
+    ['alert','bad','Việc quá hạn',behind,behind?'Cần xử lý sớm':'Không có việc trễ hạn']
+  ].map(([ic,tone,label,value,note,meter])=>'<div class="stat"><div class="shead"><span class="ic tone-'+tone+'">'+icon(ic)+'</span>'+label+'</div><strong>'+value+'</strong><small>'+note+'</small>'+(meter===undefined?'':'<div class="meter"><i style="width:'+Math.round(meter)+'%"></i></div>')+'</div>').join('');
+}
+function renderPanel(){
+  for(const b of tabs){const on=b.dataset.tab===tab;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;}
+  $('panel').setAttribute('aria-labelledby','tab-'+tab);
+  const csv=btn('','csv',{ic:'download',cls:'icononly',title:'Xuất CSV'});
+  let title, note='', controls, body;
+  if(tab==='attendance'){
+    const d=day(), records=db.attendance[d]??{}, {start,end,grace}=db.settings, q=fold(query.trim());
+    title='Chấm công ngày '+html(date(d));
+    note=start||end ? 'Ca làm việc '+(start||'…')+' – '+(end||'…')+(start&&grace?' · cho phép trễ '+grace+' phút':'') : 'Chưa đặt giờ ca, không tính đi muộn hay về sớm';
+    if(d!==today) note+=' · Ngày khác hôm nay: nhập giờ trực tiếp vào ô';
+    controls=(d===today?btn('Mã QR','qr',{ic:'qr'})+btn('Vào ca tất cả','clock-rest',{ic:'enter'}):'')+btn('Ca làm việc','shift',{ic:'sliders'})+csv+btn('Thành viên','person',{ic:'plus',cls:'primary'});
+    const list=db.people.filter(p=>(attFilter==='all' || judge(records[p.id],d).kind===attFilter) && (!q || fold(p.name+' '+p.studentId+' '+p.cls).includes(q)));
+    rosterShown=rosterKey();
+    body=!db.people.length ? empty('users','Chưa có thành viên. Thêm thành viên để bắt đầu chấm công.',btn('Thêm thành viên','person',{ic:'plus',cls:'primary'})+(db.tasks.length?'':btn('Nạp dữ liệu mẫu','demo')))
+      : '<div class="filters"><label class="search">'+icon('search')+'<input type="search" id="search" placeholder="Tìm theo tên, mã sinh viên hoặc lớp" aria-label="Tìm thành viên" value="'+html(query)+'"></label>'+attChips()+'</div>'+
+        (list.length ? '<div class="att" role="list"><div class="lhead" aria-hidden="true"><span>Thành viên</span><span>Trạng thái</span><span>Giờ vào</span><span>Giờ ra</span><span>Số giờ</span><span></span></div>'+list.map(clockRow).join('')+'</div>' : empty('search','Không có thành viên phù hợp.'));
+  }else if(tab==='sheet'){
+    const days=monthDays(month), sums=['Công','Muộn','Phép','Vắng','Giờ'];
+    const cls=d=>(d===today?' now':weekday(d)%6?'':' we');
+    title='Bảng công tháng '+month.slice(5)+'/'+month.slice(0,4);
+    note='Tổng hợp theo từng ngày trong tháng';
+    controls=btn('','month',{id:'-1',ic:'prev',cls:'icononly',title:'Tháng trước'})+btn('Tháng này','month',{id:'0'})+btn('','month',{id:'1',ic:'next',cls:'icononly',title:'Tháng sau'})+csv;
+    body=db.people.length ? '<div class="scroll"><table class="sheet"><thead><tr><th scope="col">Thành viên</th>'+
+      days.map(d=>'<th scope="col" class="'+cls(d)+'">'+Number(d.slice(8))+'<br>'+weekdays[weekday(d)]+'</th>').join('')+
+      sums.map((h,i)=>'<th scope="col" class="sum'+(i?'':' first')+'">'+h+'</th>').join('')+'</tr></thead><tbody>'+
+      db.people.map(p=>{
+        const t=tally(p.id,days);
+        return '<tr><td>'+html(p.name)+'</td>'+
+          t.codes.map((code,i)=>'<td class="'+cls(days[i])+'">'+(code?'<span class="c '+codeClass[code]+'">'+code+'</span>':'')+'</td>').join('')+
+          [t.work,t.late,t.leave,t.absent,(t.minutes/60).toLocaleString('vi-VN',{maximumFractionDigits:1})].map((v,i)=>'<td class="sum'+(i?'':' first')+'">'+v+'</td>').join('')+'</tr>';
+      }).join('')+'</tbody></table></div><div class="legend">'+
+      [['X','ok','Đủ công'],['M','warn','Đi muộn'],['S','warn','Về sớm'],['?','warn','Thiếu giờ ra'],['P','info','Nghỉ phép'],['V','bad','Vắng mặt']].map(([c,k,l])=>'<span><span class="c '+k+'">'+c+'</span>'+l+'</span>').join('')+'</div>'
+      : empty('calendar','Chưa có thành viên.');
+  }else if(tab==='tasks'){
+    const groups={all:()=>true,open:t=>t.progress<100,done:t=>t.progress===100,late:overdue};
+    const count=k=>db.tasks.filter(groups[k]).length;
+    const list=db.tasks.filter(groups[taskFilter]).sort((a,b)=>a.due.localeCompare(b.due));
+    title='Kế hoạch công việc';
+    note='Giao việc, hạn hoàn thành và tiến độ';
+    controls=csv+btn('Thêm công việc','task',{ic:'plus',cls:'primary'});
+    body=!db.tasks.length ? empty('tasks','Chưa có công việc. Thêm công việc để bắt đầu lập kế hoạch.',btn('Thêm công việc','task',{ic:'plus',cls:'primary'}))
+      : '<div class="filters">'+fchips('task',taskFilter,[['all','Tất cả',count('all')],['open','Đang thực hiện',count('open')],['done','Hoàn thành',count('done')],['late','Quá hạn',count('late')]])+'</div>'+
+        (list.length ? '<div class="tsk" role="list"><div class="lhead" aria-hidden="true"><span>Công việc</span><span>Tiến độ</span><span>Trạng thái</span><span></span></div>'+list.map(t=>{
+          const s=t.progress===100 ? {cls:'ok',label:'Hoàn thành'} : overdue(t) ? {cls:'bad',label:'Quá hạn'} : t.progress===0 ? {cls:'idle',label:'Chưa bắt đầu'} : {cls:'info',label:'Đang thực hiện'};
+          return '<div class="row" role="listitem"><div class="who"><div><strong>'+html(t.title)+'</strong><small>'+html(person(t.owner))+' · Hạn '+html(date(t.due))+'</small></div></div>'+
+            '<div class="prog"><div class="meter" aria-hidden="true"><i style="width:'+t.progress+'%"></i></div><b>'+t.progress+'%</b></div><div class="st">'+chip(s)+'</div>'+
+            '<div class="act">'+btn('Cập nhật','task',{id:t.id,ic:'edit'})+'</div></div>';
+        }).join('')+'</div>' : empty('search','Không có công việc phù hợp với bộ lọc.'));
+  }else{
+    const days=monthDays(today.slice(0,7));
+    title='Thành viên';
+    note=db.people.length+' người trong đội';
+    controls=csv+btn('Thêm thành viên','person',{ic:'plus',cls:'primary'});
+    body=db.people.length ? '<div class="ppl" role="list"><div class="lhead" aria-hidden="true"><span>Thành viên</span><span>Điện thoại</span><span>Tháng này</span><span></span></div>'+db.people.map(p=>{
+      const own=db.tasks.filter(t=>t.owner===p.id), t=tally(p.id,days);
+      return '<div class="row" role="listitem">'+who(p,idLine(p))+
+        '<div class="phone">'+(p.phone?'<a href="tel:'+html(p.phone.replace(/[^\d+]/g,''))+'">'+html(p.phone)+'</a>':'<span class="sub">—</span>')+'</div>'+
+        '<div class="sub stats-cell">'+t.work+' ngày công · việc '+own.filter(x=>x.progress===100).length+'/'+own.length+'</div>'+
+        '<div class="act">'+btn('Sửa','person',{id:p.id,ic:'edit'})+'</div></div>';
+    }).join('')+'</div>' : empty('users','Chưa có thành viên.',btn('Thêm thành viên','person',{ic:'plus',cls:'primary'}));
+  }
+  $('panel').innerHTML='<div class="toolbar"><div><h2>'+title+'</h2>'+(note?'<p>'+note+'</p>':'')+'</div><div class="actions">'+controls+'</div></div>'+body;
+  if(tab==='attendance') syncAttendance();
+}
+function render(){renderStats();renderPanel();}
+// Redraw without losing the control the manager is on.
+function keepFocus(draw){
+  const a=document.activeElement, inside=a && $('panel').contains(a);
+  const selector=!inside ? '' : a.id ? '#'+CSS.escape(a.id)
+    : a.dataset.action ? '[data-action="'+a.dataset.action+'"][data-id="'+CSS.escape(a.dataset.id??'')+'"]'
+    : a.dataset.filter ? '[data-filter="'+a.dataset.filter+'"][data-value="'+a.dataset.value+'"]'
+    : a.dataset.field ? '[data-person="'+CSS.escape(a.closest('[data-person]').dataset.person)+'"] [data-field="'+a.dataset.field+'"]' : '';
+  draw();
+  if(selector) $('panel').querySelector(selector)?.focus();
+}
+// After data arrives from another manager: update numbers and rows in place where possible.
+function refresh(){
+  renderStats();
+  if(tab==='attendance' && rosterShown===rosterKey()) syncAttendance();
+  else keepFocus(renderPanel);
+}
+function refocus(action,id){
+  const find=value=>$('panel').querySelector('[data-action="'+action+'"][data-id="'+CSS.escape(value)+'"]');
+  (find(id)??find(''))?.focus();
+}
+
+// ---- Dialogs ----
+function dialogButtons(extra=''){return '<div class="actions">'+extra+'<button type="button" class="btn" id="cancel">Hủy</button><button class="btn primary" type="submit">Lưu</button></div>';}
+function openDialog(content,onsubmit){
+  $('editor').innerHTML=content;
+  $('editor').onsubmit=event=>{event.preventDefault();onsubmit?.(event.currentTarget);};
+  if($('cancel')) $('cancel').onclick=()=>$('modal').close();
+  $('modal').showModal();
+}
+function editShift(){
+  const {start,end,grace}=db.settings;
+  openDialog('<h2 id="modal-title">Ca làm việc</h2><label>Giờ bắt đầu<input name="start" type="time" value="'+start+'"></label><label>Giờ kết thúc<input name="end" type="time" value="'+end+'"></label><label>Cho phép trễ (phút)<input name="grace" type="number" inputmode="numeric" required min="0" max="120" step="1" value="'+grace+'"></label><p>Vào ca sau giờ bắt đầu tính là đi muộn, ra ca trước giờ kết thúc tính là về sớm. Để trống giờ nếu không cần tính.</p>'+dialogButtons(),form=>{
+    const values=Object.fromEntries(new FormData(form));
+    commit({settings:{start:values.start,end:values.end,grace:Number(values.grace)}});
+    $('modal').close();render();refocus('shift','');
+  });
+}
+function edit(action,id){
+  const isTask=action==='task', item=(isTask?state.tasks:state.people)[id];
+  const fields=isTask ? '<label>Tên công việc<input name="title" required maxlength="160" value="'+html(item?.title??'')+'"></label><label>Người phụ trách<select name="owner"><option value="">Chưa phân công</option>'+db.people.map(p=>'<option value="'+html(p.id)+'" '+(item?.owner===p.id?'selected':'')+'>'+html(p.name)+'</option>').join('')+'</select></label><label>Hạn hoàn thành<input name="due" type="date" required value="'+html(item?.due??today)+'"></label><label>Tiến độ (%)<input name="progress" type="number" inputmode="numeric" required min="0" max="100" step="1" value="'+(item?.progress??0)+'"></label>' : '<label>Họ và tên<input name="name" required maxlength="100" autocomplete="off" value="'+html(item?.name??'')+'"></label><label>Mã sinh viên<input name="studentId" maxlength="40" inputmode="numeric" autocomplete="off" value="'+html(item?.studentId??'')+'"></label><label>Lớp<input name="cls" maxlength="40" autocomplete="off" value="'+html(item?.cls??'')+'"></label><label>Số điện thoại<input name="phone" type="tel" maxlength="40" autocomplete="off" value="'+html(item?.phone??'')+'"></label>';
+  const finish=()=>{$('modal').close();render();refocus(action,id);};
+  openDialog('<h2 id="modal-title">'+(isTask?(item?'Cập nhật công việc':'Thêm công việc'):(item?'Chỉnh sửa thành viên':'Thêm thành viên'))+'</h2>'+fields+dialogButtons(item?'<button type="button" class="btn" id="remove">'+(isTask?'Xóa việc':'Xóa thành viên')+'</button><span class="grow"></span>':''),form=>{
+    const values=Object.fromEntries(new FormData(form)), input=form.elements[isTask?'title':'name'];
+    values[input.name]=input.value.trim();
+    if(!values[input.name]){input.value='';input.reportValidity();return;}
+    const key=id || (isTask?'t':'p')+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+    commit(isTask ? {['tasks/'+key]:{title:values.title,owner:values.owner,due:values.due,progress:Number(values.progress)}}
+      : {['people/'+key]:{name:values.name,studentId:values.studentId.trim(),cls:values.cls.trim(),phone:values.phone.trim(),order:item?.order ?? db.people.reduce((max,p)=>Math.max(max,p.order),-1)+1}});
+    finish();
+  });
+  if(item) $('remove').onclick=()=>{
+    const message=isTask?'Xóa công việc này khỏi kế hoạch?':
+      'Xóa '+item.name+' và toàn bộ lịch sử chấm công của thành viên này? Các công việc đã giao sẽ chuyển sang Chưa phân công.';
+    if(!confirm(message)) return;
+    const updates={[(isTask?'tasks/':'people/')+id]:null};
+    if(!isTask){
+      for(const [taskId,t] of Object.entries(state.tasks)) if(t.owner===id) updates['tasks/'+taskId]={...t,owner:''};
+      for(const [d,records] of Object.entries(state.attendance)) if(records[id]) updates['attendance/'+d+'/'+id]=null;
+    }
+    commit(updates);finish();
+  };
+}
+function openSync(){
+  if(!sync){
+    openDialog('<h2 id="modal-title">Đồng bộ dữ liệu</h2><p>Dán <b>link quản lý</b> để máy này dùng chung dữ liệu với các quản lý khác. Khi thiết lập lần đầu, dán địa chỉ Firebase Realtime Database của đội.</p><label>Link quản lý<input name="link" required autocomplete="off" placeholder="https://…#sync=…"></label><div class="actions"><button type="button" class="btn" id="cancel">Hủy</button><button class="btn primary" type="submit">Kết nối</button></div>',form=>{
+      const input=form.elements.link, config=parseSync(input.value);
+      input.setCustomValidity(config?'':'Link không hợp lệ. Hãy dán nguyên link quản lý.');
+      if(!config){input.reportValidity();input.oninput=()=>input.setCustomValidity('');return;}
+      if(hasLocalWork() && !confirm('Kết nối máy này với dữ liệu chung? Nếu đội đã có dữ liệu chung, dữ liệu đang lưu riêng trên máy này sẽ được thay bằng dữ liệu đó.')) return;
+      $('modal').close();startSync(config);toast('Đang kết nối dữ liệu chung…');
+    });
+    return;
+  }
+  const pending=Object.keys(outbox).length;
+  const status=!live ? (refused?'Không kết nối được. Kiểm tra lại link hoặc mạng.':'Đang kết nối…') : !online ? 'Mất kết nối. Thay đổi được giữ trên máy và sẽ gửi khi có mạng.' : pending ? 'Đang gửi '+pending+' thay đổi…' : 'Mọi thay đổi đã được đồng bộ.';
+  openDialog('<h2 id="modal-title">Đồng bộ dữ liệu</h2><p>'+status+'</p><label>Link quản lý<input id="mlink" readonly value="'+html(managerLink())+'"></label><p>Ai mở link này đều xem và sửa được dữ liệu chung. Chỉ gửi cho người quản lý.</p><div class="actions"><button type="button" class="btn" id="unlink">Ngắt kết nối</button><span class="grow"></span><button type="button" class="btn" id="cancel">Đóng</button><button type="button" class="btn primary" id="copy">Sao chép link</button></div>');
+  $('copy').onclick=async()=>{
+    try {await navigator.clipboard.writeText(managerLink());toast('Đã sao chép link quản lý');}
+    catch {$('mlink').select();toast('Hãy sao chép link trong ô');}
+  };
+  $('unlink').onclick=()=>{
+    if(!confirm('Ngắt kết nối máy này? Máy vẫn giữ một bản dữ liệu nhưng không còn đồng bộ với cả đội.')) return;
+    $('modal').close();stopSync();render();
+  };
+}
+
+// ---- Actions ----
+function saveRecord(id,record){commit({['attendance/'+day()+'/'+id]:record});}
+function exportCsv(){
+  let rows, name=({attendance:'cham-cong',sheet:'bang-cong-'+month,tasks:'ke-hoach',people:'thanh-vien'})[tab];
+  if(tab==='attendance') rows=[['Ngày','Thành viên','Giờ vào','Giờ ra','Số giờ','Trạng thái'],...[...new Set([...Object.keys(db.attendance),day()])].sort().flatMap(d=>db.people.map(p=>{const r=db.attendance[d]?.[p.id];return [d,p.name,r?.in??'',r?.out??'',worked(r)?clockTotal(worked(r)):'',judge(r,d).label];}))];
+  else if(tab==='sheet'){const days=monthDays(month);rows=[['Thành viên',...days.map(d=>Number(d.slice(8))),'Công','Muộn','Phép','Vắng','Giờ'],...db.people.map(p=>{const t=tally(p.id,days);return [p.name,...t.codes,t.work,t.late,t.leave,t.absent,clockTotal(t.minutes)];})];}
+  else if(tab==='people') rows=[['Thành viên','Mã sinh viên','Lớp','Số điện thoại','Đã hoàn thành','Tổng công việc','Tiến độ trung bình'],...db.people.map(p=>{const own=db.tasks.filter(t=>t.owner===p.id);return [p.name,p.studentId,p.cls,p.phone,own.filter(t=>t.progress===100).length,own.length,avg(own)];})];
+  else rows=[['Công việc','Phụ trách','Hạn hoàn thành','Tiến độ (%)'],...db.tasks.map(t=>[t.title,person(t.owner),t.due,t.progress])];
+  const csv=rows.map(row=>row.map(value=>{let s=String(value);if(/^[\s]*[=+@-]|^[\t\r\n]/.test(s)) s="'"+s;return '"'+s.replaceAll('"','""')+'"';}).join(',')).join('\r\n');
+  const url=URL.createObjectURL(new Blob(['﻿',csv],{type:'text/csv;charset=utf-8'}));
+  const link=document.createElement('a');link.href=url;link.download=name+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function loadDemo(){
+  if(!confirm('Thêm danh sách và công việc minh họa?')) return;
+  const shift=n=>dayFormat.format(new Date(Date.now()+n*86400000)), y=shift(-1);
+  commit({
+    'people/an':{name:'Nguyễn Minh An',studentId:'',cls:'',phone:'',order:0},'people/vy':{name:'Trần Thảo Vy',studentId:'',cls:'',phone:'',order:1},'people/nam':{name:'Lê Hoài Nam',studentId:'',cls:'',phone:'',order:2},
+    'tasks/a':{title:'Hoàn thiện báo cáo tuần',owner:'an',due:y,progress:75},'tasks/b':{title:'Kiểm tra danh sách vật tư',owner:'vy',due:today,progress:100},'tasks/c':{title:'Cập nhật kế hoạch tuần tới',owner:'nam',due:shift(3),progress:35},
+    ['attendance/'+y+'/an']:{in:'07:55',out:'17:05'},['attendance/'+y+'/vy']:{in:'08:20',out:'17:00'},['attendance/'+y+'/nam']:{in:'08:00',out:'16:10'},
+    ['attendance/'+today+'/an']:{in:'07:58'},['attendance/'+today+'/vy']:{in:'08:25'},['attendance/'+today+'/nam']:{status:'leave'}
+  });
+  render();
+}
+function selectTab(name,focus){
+  tab=name;renderPanel();
+  if(focus) tabs.find(b=>b.dataset.tab===name).focus();
+}
+$('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b) selectTab(b.dataset.tab);});
+$('tabs').addEventListener('keydown',e=>{
+  const i=tabs.indexOf(e.target);
+  const next={ArrowRight:i+1,ArrowLeft:i-1,Home:0,End:tabs.length-1}[e.key];
+  if(i<0 || next===undefined) return;
+  e.preventDefault();
+  selectTab(tabs[(next+tabs.length)%tabs.length].dataset.tab,true);
+});
+$('day').addEventListener('change',()=>{if(!$('day').value) $('day').value=today;render();});
+$('syncchip').onclick=$('noticeBtn').onclick=openSync;
+$('panel').addEventListener('click',e=>{
+  const f=e.target.closest('[data-filter]');
+  if(f){
+    if(f.dataset.filter==='att') attFilter=f.dataset.value; else taskFilter=f.dataset.value;
+    keepFocus(renderPanel);return;
+  }
+  const b=e.target.closest('[data-action]');
+  if(!b) return;
+  const {action,id}=b.dataset;
+  if(action==='clock'){
+    const row=b.closest('[data-person]'), who=row.dataset.person, r=db.attendance[day()]?.[who], time=nowTime();
+    saveRecord(who,r?.in ? {in:r.in,out:time} : {in:time});
+    toast(person(who)+(r?.in?' ra ca lúc ':' vào ca lúc ')+time);
+    renderStats();syncAttendance();
+    // After clocking out the button is gone; keep keyboard focus in the row.
+    if(b.hidden) row.querySelector('[data-field=out]').focus();
+  }else if(action==='clock-rest'){
+    const d=day(), records=db.attendance[d]??{}, time=nowTime(), updates={};
+    for(const p of db.people) if(!records[p.id]) updates['attendance/'+d+'/'+p.id]={in:time};
+    commit(updates);
+    toast(Object.keys(updates).length+' người vào ca lúc '+time);
+    renderStats();syncAttendance();
+  }else if(action==='month'){
+    month=id==='0' ? today.slice(0,7) : addMonth(month,Number(id));
+    renderPanel();refocus(action,id);
+  }else if(action==='shift') editShift();
+  else if(action==='qr') openQr();
+  else if(action==='csv') exportCsv();
+  else if(action==='demo') loadDemo();
+  else edit(action,id);
+});
+$('panel').addEventListener('input',e=>{
+  if(e.target.id!=='search') return;
+  query=e.target.value;
+  keepFocus(renderPanel);
+  const box=$('search');
+  box?.setSelectionRange(box.value.length,box.value.length);
+});
+$('panel').addEventListener('change',e=>{
+  const el=e.target, row=el.closest('[data-person]');
+  if(!row || !el.dataset.field) return;
+  const id=row.dataset.person, field=el.dataset.field, r=db.attendance[day()]?.[id]??{};
+  let record;
+  if(field==='status'){
+    // A hand mark replaces clock times, so ask before throwing recorded times away.
+    if(el.value && r.in && !confirm('Giờ đã chấm của '+person(id)+' sẽ bị xóa và thay bằng "'+marks[el.value]+'". Tiếp tục?')){el.value='';return;}
+    record=el.value ? {status:el.value} : null;
+  }else if(field==='in') record=el.value ? (r.out ? {in:el.value,out:r.out} : {in:el.value}) : null;
+  else record=el.value ? {in:r.in,out:el.value} : {in:r.in};
+  saveRecord(id,record);
+  renderStats();syncAttendance();
+});
+// Another tab of this page saved: load its data so this tab cannot overwrite it with an older copy.
+addEventListener('storage',e=>{
+  if(e.key!==STORE || !e.newValue || sync || checkin) return;
+  try {state=cleanState(JSON.parse(e.newValue).state);} catch {return;}
+  derive();
+  if($('modal').open) $('modal').close();
+  render();
+});
+// A manager link or QR link pasted into a page that is already open only changes the part after "#": start over with it.
+addEventListener('hashchange',()=>{if(/[#&](sync|qr)=/.test(location.hash)) location.reload();});
+addEventListener('online',()=>{
+  if(!sync) return;
+  if(stream?.readyState===EventSource.CLOSED) openStream();
+  flush();
+});
+// The live clock also notices midnight, so "today" and the clock buttons never go stale on a page left open.
+function tick(){
+  const now=new Date(), current=dayFormat.format(now);
+  $('clock').textContent=timeFormat.format(now);
+  if(current===today && $('todayLabel').textContent) return;
+  if($('day').value===today) $('day').value=current;
+  today=current;
+  $('todayLabel').textContent=longDate.format(now);
+  redraw();
+}
+
+// ---- Start ----
+function startManager(){
+  try {
+    const saved=localStorage.getItem(STORE), old=saved ? null : localStorage.getItem(OLD_STORE);
+    if(saved){const data=JSON.parse(saved);state=cleanState(data.state);outbox=isRecord(data.outbox)?data.outbox:{};}
+    else if(old) state=fromV1(JSON.parse(old));
+  } catch {state=cleanState();outbox={};}
+  derive();
+  let stored=null;
+  try {const saved=JSON.parse(localStorage.getItem(SYNC_STORE)??'null');stored=saved ? parseTarget(targetCode(saved)) : null;if(stored) stored.joined=true;} catch {}
+  const linked=fromHash('sync');
+  const changed=linked && (!stored || stored.url!==linked.url || stored.key!==linked.key);
+  if(changed && (!(hasLocalWork() || stored) || confirm('Kết nối máy này với dữ liệu chung của đội? Dữ liệu đang lưu riêng trên máy này sẽ được thay bằng dữ liệu chung.'))){
+    // Leaving another shared space: start clean so its data is never uploaded into this one.
+    if(stored){state=cleanState();derive();}
+    outbox={};startSync(linked);
+  }
+  else if(stored) startSync(stored);
+  else{outbox={};commit(seedUpdates());}
+  redraw=()=>{render();watchDaily();};
+  updateChip();updateFoot();
+}
+for(const b of tabs) b.innerHTML=icon(b.dataset.icon)+'<span>'+b.textContent+'</span>';
+$('day').value=today;
+{
+  const scanned=fromHash('qr');
+  if(scanned) startCheckin(scanned); else startManager();
+}
+tick();
+setInterval(tick,1000);
+</script>
+</body>
+</html>
